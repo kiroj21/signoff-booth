@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="only light"><style>:root{color-scheme:only light}</style>
+<title>Booth check | {{organisation}} Sign-Off Booth</title>
+<!-- Preflight page, 16 Oct 2026. Served by booth-server.js at /check (laptop only). Start Booth.command opens it first.
+     Reads /check.json (server facts) and tests the browser itself (Chrome version, MP4, camera, promo, internet). -->
+<style>
+:root{--brand:#24435E;--brand-dark:#162B3D;--accent:#E8590C;--paper:#fff;--page:#F5F6F7;--text:#161A1D;--muted:#505A61;--line:rgba(22,26,29,.12);
+  --ok:#1F7A43;--warn:#B26A00;--bad:#B3261E;--serif:Georgia,'Times New Roman',serif;--sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--sans);line-height:1.5}
+main{max-width:860px;margin:0 auto;padding:24px 20px 48px}
+header{display:flex;align-items:center;gap:20px;margin-bottom:8px}
+header img{width:140px;height:auto}
+h1{font-family:var(--serif);font-weight:400;color:var(--brand);font-size:32px;line-height:1.15;margin:0}
+.verdict{border-radius:14px;padding:16px 20px;margin:16px 0 20px;font-weight:700;font-size:20px;color:#fff;background:var(--muted)}
+.verdict.ok{background:var(--ok)}.verdict.warn{background:var(--warn)}.verdict.bad{background:var(--bad)}
+.verdict small{display:block;font-weight:400;font-size:15px;opacity:.95}
+h2{font-family:var(--serif);font-weight:400;color:var(--brand);font-size:20px;margin:24px 0 8px}
+.row{display:flex;gap:12px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 8px}
+.dot{flex:none;width:14px;height:14px;border-radius:50%;margin-top:6px;background:#bbb}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}.dot.wait{background:#bbb}
+.row b{display:block}.row span{color:var(--muted);font-size:15px;word-break:break-word}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
+a.btn,button.btn{font:inherit;font-weight:700;font-size:18px;padding:14px 22px;border-radius:12px;border:0;cursor:pointer;text-decoration:none;display:inline-block}
+.primary{color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-dark))}
+.plain{color:var(--brand);background:#fff;border:2px solid var(--brand)!important}
+.tab{display:flex;gap:20px;flex-wrap:wrap;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+.tab canvas{background:#fff}.tab code{font-size:13px;word-break:break-all;color:var(--muted)}
+select{font:inherit;padding:6px;margin-bottom:8px;max-width:100%}
+</style>
+</head>
+<body>
+<main>
+  <header><img data-brand="logo.main (brand/logo.png)" src="/logo.png" alt="{{logo.alt}}"><h1>Booth check</h1></header>
+  <div class="verdict" id="verdict">Checking<small>One moment.</small></div>
+  <div class="actions"><a class="btn primary" href="/recorder" id="openRec">Open the recorder</a><button class="btn plain" id="again" type="button">Check again</button><a class="btn plain" href="/control">Logo, colours and wording</a></div>
+  <div id="rows"></div>
+  <h2>Tablet</h2>
+  <div class="tab">
+    <canvas id="qr" width="220" height="220"></canvas>
+    <div><select id="ifSel"></select><div><code id="tabUrl"></code></div><p style="margin:8px 0 0"><b id="tabN">Checking</b><br><span style="color:var(--muted);font-size:15px">Scan this with the tablet camera. The address changes on every network, so always use the QR.</span></p></div>
+  </div>
+</main>
+<script src="/qr.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var facts=null,rows=[],timer=null;
+function add(group,state,title,detail){rows.push({group:group,state:state,title:title,detail:detail||''})}
+function fmtMB(b){return (b/1048576).toFixed(1)+' MB'}
+function timeout(p,ms){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'))},ms)})])}
+
+function serverRows(f){
+  add('Computer','ok','Booth server','Running on Node '+f.node.replace(/^v/,'')+' ('+f.arch+', '+f.platform+'), port '+f.port+'.');
+  var s=f.settings;
+  if(s.exists&&s.writable)add('Computer','ok','Settings file','booth-settings.json found and can be saved.');
+  else if(s.exists)add('Computer','warn','Settings file','Found, but this folder is read-only, so Save settings cannot write it. Move the booth folder to your Home folder.');
+  else add('Computer','warn','Settings file','Not found. It is created the first time you press Save settings in the recorder.');
+  var p=f.pages;
+  if(p.recorder&&p.tablet&&p.qr)add('Booth files','ok','Recorder, tablet page and QR maker','All present.');
+  else add('Booth files','bad','Booth files','Missing: '+[!p.recorder&&'recorder page',!p.tablet&&'tablet page',!p.qr&&'booth-qr.js'].filter(Boolean).join(', ')+'. Copy the whole booth folder again.');
+  ['fonts','logo'].forEach(function(k){
+    var src=f.assets[k],name=k==='fonts'?'Brand fonts':'Logo';
+    if(src==='missing')add('Booth files',k==='fonts'?'warn':'bad',name,k==='fonts'?'brand.json names a fonts file that is not in the brand folder, so the booth uses system fonts. Check fonts.cssFile in brand/brand.json.':'brand/logo.png is not there. Branded clips and the download page need a logo. Put your logo in the brand folder (see the README, "Rebranding").');
+    else if(src==='system fonts')add('Booth files','ok',name,'No custom fonts set, so the booth uses the system fonts. To use your own, see the README, "Rebranding".');
+    else add('Booth files','ok',name,'Loaded from '+src+'.');
+  });
+  if((f.assets.logos||[]).length===3)add('Booth files','ok','Logo versions (transparent)','All three found: with an outline, light, and full colour. The recorder picks one to suit the picture behind it.');
+  else add('Booth files','warn','Logo versions (transparent)','Only found: '+((f.assets.logos||[]).join(', ')||'none')+'. The recorder falls back to the logo on a white plate. Put the missing versions in the brand folder (README, "Rebranding").');
+  if(f.promo.exists)add('Booth files','ok','Promo video',''+f.promo.name+' found ('+fmtMB(f.promo.bytes)+').');
+  else add('Booth files','ok','Promo video','None (optional). The tablet shows a logo slide when idle. To add a video, put brand/promo.mp4 in place.');
+  var br=f.brand||{};
+  if(br.consentIsPlaceholder)add('Branding','bad','Consent wording','Still the [EDIT ME] placeholder. Write your own consent wording in brand/brand.json (consent) or in the recorder, Settings. Do not run the booth with people on camera until this is done.');
+  else add('Branding','ok','Consent wording','Set. Check it still matches your local rules and what you do with the clips.');
+  if(!br.customised)add('Branding','warn','Branding','Still the default name and colours. Edit brand/brand.json, then reload this page. Add ?marks=1 to the tablet or recorder address to see which spots you can change.');
+  else add('Branding','ok','Branding','Using the settings for '+br.organisation+'.');
+  var c=f.clips,d=f.drive,st=f.storage,sv=' Change it in the recorder: Settings > Where clips are saved.';
+  var accs=d.accounts.map(function(x){return x.email});
+  if(st.locked)add('Saving','ok','Where clips are saved','Fixed by the program that started the booth: '+c.path+'.');
+  else if(st.settings.location==='local'||st.settings.location==='custom')add('Saving','ok','Where clips are saved',(st.settings.location==='local'?'This laptop only (no Google Drive): ':'A folder you chose: ')+c.path+'.');
+  else if(f.platform==='linux'&&!d.app)add('Saving','bad','Google Drive on Linux','Google has no Drive app for Linux. In the recorder open Settings > Where clips are saved, choose "This laptop", press Apply, then set up the rclone upload (the README, Linux section).'+sv);
+  else if(!d.app)add('Saving','bad','Google Drive for desktop','Not installed on this Mac. Install it from google.com/drive/download, sign in as '+d.wantAccount+' (you type the password and the code yourself), then press Check again.'+sv);
+  else if(!accs.length)add('Saving','bad','Google Drive sign-in','Drive for desktop is installed but nobody is signed in. Click its icon in the menu bar, sign in as '+d.wantAccount+', wait until the Drive folder shows in Finder, then press Check again.');
+  else if(st.problem==='accountMissing')add('Saving','bad','Google Drive account','Drive is signed in as '+accs.join(', ')+', not '+d.wantAccount+'. Sign in as '+d.wantAccount+' (Drive menu bar icon > account picture > Add another account), or pick the account in the recorder.'+sv);
+  else if(st.problem==='locationMissing')add('Saving','bad','Google Drive location','Signed in as '+d.wantAccount+', but "'+st.settings.location+'" was not found in it. Wait for Drive to finish loading, or pick another location.'+sv);
+  else add('Saving','ok','Google Drive account','Signed in as '+(c.account||d.wantAccount)+'.');
+  if(!st.locked&&st.settings.location!=='local'&&st.settings.location!=='custom'&&d.app&&accs.length&&!st.problem)add('Saving','ok','Drive location',st.settings.location+' > '+st.settings.folder+'.');
+  if(!c.writable)add('Saving','bad','Clips folder','Cannot write to '+c.path+'. Clips would not be saved.'+sv);
+  else if(c.kind==='drive')add('Saving','ok','Clips folder (Google Drive)',c.path+'. Next clip number: '+c.next+'.');
+  else if(st.problem)add('Saving','bad','Clips folder','Clips would be saved on this laptop only: '+c.path+'. Fix the Google Drive row above, then press Check again.');
+  else add('Saving','ok','Clips folder',c.path+'. Next clip number: '+c.next+'.');
+  var sy=f.sync||{on:false};
+  if(sy.on){
+    if(!sy.found)add('Saving','bad','Drive upload (rclone)','rclone is not installed on this computer, so clips are NOT reaching Google Drive. Install it (see the README, Linux section), then press Check again.');
+    else if(sy.lastError)add('Saving','bad','Drive upload (rclone)','The last upload failed: '+sy.lastError+' Clips are safe on this laptop. Check the internet and the rclone sign-in ("rclone lsd '+sy.dest.split(':')[0]+':").');
+    else if(sy.lastOkAt)add('Saving','ok','Drive upload (rclone)','Copies new clips to '+sy.dest+' ('+sy.version+'). Last upload finished '+Math.max(0,Math.round((Date.now()-sy.lastOkAt)/1000))+' s ago'+(sy.waiting?'; newer clips are waiting.':'.'));
+    else add('Saving','warn','Drive upload (rclone)','Set to copy new clips to '+sy.dest+' ('+sy.version+'). The first upload has not finished yet. Press Check again in a moment.');
+  }
+  var b=f.backup;
+  if(b.mode==='none')add('Saving','warn','Backup','Backup is switched off. Clips will have no second copy.'+sv);
+  else if(b.set&&b.writable)add('Saving','ok',b.mode==='usb'?'USB backup':'Backup folder','Second copy goes to '+b.path+'.');
+  else if(b.set)add('Saving','bad','Backup','The backup location is there but cannot be written to: '+b.path+'.'+sv);
+  else add('Saving','warn','USB backup','No USB stick found'+(b.name?' named '+b.name:'')+'. Plug it in and press Check again, or switch the backup off.'+sv);
+}
+
+function browserRows(){
+  var m=/Chrome\/(\d+)/.exec(navigator.userAgent),v=m?+m[1]:0;
+  if(!m)add('Browser','bad','Browser','This is not Google Chrome. Open the booth in Chrome.');
+  else if(v>=126)add('Browser','ok','Chrome','Version '+v+'.');
+  else add('Browser','warn','Chrome','Version '+v+' is old. Update Chrome so clips are recorded as MP4.');
+  var mp4=false;try{mp4=window.MediaRecorder&&MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')}catch(e){}
+  if(mp4)add('Browser','ok','MP4 recording','This Chrome records MP4, which every phone plays.');
+  else add('Browser','warn','MP4 recording','This Chrome records WebM instead. iPhones may not play it. Update Chrome.');
+}
+
+function cameraRow(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){add('Camera','bad','Camera','This page cannot reach a camera. Open it at http://localhost, not the network address.');return Promise.resolve()}
+  return timeout(navigator.mediaDevices.getUserMedia({video:true}),15000).then(function(st){
+    st.getTracks().forEach(function(t){t.stop()});
+    return navigator.mediaDevices.enumerateDevices();
+  }).then(function(list){
+    var cams=list.filter(function(d){return d.kind==='videoinput'});
+    if(cams.length)add('Camera','ok','Camera',cams.length+' found: '+cams.map(function(d){return d.label||'camera'}).join(', ')+'. Pick the right one in the recorder under Settings.');
+    else add('Camera','bad','Camera','No camera found. Check the capture dongle and the HDMI cable, and that the camera is on.');
+  }).catch(function(e){
+    if(e&&e.name==='NotAllowedError')add('Camera','bad','Camera','Chrome has blocked the camera. Click the camera icon in the address bar, choose Allow, then Check again.');
+    else if(e&&e.name==='NotFoundError')add('Camera','bad','Camera','No camera found. Check the capture dongle and the HDMI cable, and that the camera is on.');
+    else if(e&&e.message==='timeout')add('Camera','warn','Camera','Chrome is waiting for you to allow the camera. Click Allow, then Check again.');
+    else add('Camera','warn','Camera','Could not open the camera ('+(e&&e.name||'error')+'). Close other apps that use it, then Check again.');
+  });
+}
+
+function promoRow(f){
+  if(!f.promo.exists)return Promise.resolve();
+  return new Promise(function(res){
+    var v=document.createElement('video'),done=false;v.muted=true;v.preload='metadata';
+    function fin(state,txt){if(done)return;done=true;add('Booth files',state,'Promo video plays',txt);res()}
+    v.onloadedmetadata=function(){fin('ok','Chrome can play it: '+v.videoWidth+' x '+v.videoHeight+', '+v.duration.toFixed(1)+' s.')};
+    v.onerror=function(){fin('warn','Chrome cannot play the promo video. The tablet would show the logo slide.')};
+    setTimeout(function(){fin('warn','The promo did not load in time.')},6000);
+    v.src='/promo?c='+Date.now();
+  });
+}
+
+function netRow(){
+  var ctl=new AbortController();setTimeout(function(){ctl.abort()},5000);
+  return fetch('https://www.google.com/generate_204',{mode:'no-cors',cache:'no-store',signal:ctl.signal}).then(function(){
+    add('Network','ok','Internet','Reachable. Google Drive for desktop can upload the clips.');
+  }).catch(function(){
+    add('Network','warn','Internet','Not reachable. Clips are still saved here and upload when the internet returns.');
+  });
+}
+
+function addrRows(f){
+  var sel=$('#ifSel');
+  if(!f.addresses.length)add('Network','bad','Tablet network','This laptop has no network address. Join the tablet\'s hotspot (Wi-Fi menu), then Check again.');
+  else add('Network','ok','Tablet network',f.addresses.length+' network address'+(f.addresses.length>1?'es':'')+' found.');
+}
+
+function showTablet(f){
+  var sel=$('#ifSel'),i=+sel.value||0,a=f.addresses[i];
+  if(!a){$('#tabUrl').textContent='No network address yet.';var c=$('#qr').getContext('2d');c.clearRect(0,0,220,220);return}
+  var url='http://'+a.ip+':'+f.port+'/tablet?k='+f.key;$('#tabUrl').textContent=url;
+  if(window.BoothQR)BoothQR.toCanvas($('#qr'),url,220);
+}
+function tabletState(n){
+  $('#tabN').textContent=n?('Tablet: '+n+' connected'):'Tablet: not connected yet';
+  $('#tabN').style.color=n?'var(--ok)':'var(--warn)';
+}
+
+function render(){
+  var groups=[],byG={};
+  rows.forEach(function(r){if(!byG[r.group]){byG[r.group]=[];groups.push(r.group)}byG[r.group].push(r)});
+  var html='';
+  groups.forEach(function(g){html+='<h2>'+g+'</h2>';byG[g].forEach(function(r){
+    html+='<div class="row"><i class="dot '+r.state+'"></i><div><b>'+esc(r.title)+'</b><span>'+esc(r.detail)+'</span></div></div>'});});
+  $('#rows').innerHTML=html;
+  var bad=rows.filter(function(r){return r.state==='bad'}),warn=rows.filter(function(r){return r.state==='warn'});
+  var v=$('#verdict');
+  if(bad.length){v.className='verdict bad';v.innerHTML='Not ready<small>'+bad.length+' thing'+(bad.length>1?'s':'')+' to fix (red) before the event.</small>'}
+  else if(warn.length){v.className='verdict warn';v.innerHTML='Ready, with notes<small>'+warn.length+' note'+(warn.length>1?'s':'')+' (amber). Read them, then carry on if you are happy.</small>'}
+  else{v.className='verdict ok';v.innerHTML='Ready<small>Everything checks out.</small>'}
+}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+function run(){
+  rows=[];$('#verdict').className='verdict';$('#verdict').innerHTML='Checking<small>One moment.</small>';
+  fetch('/check.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(f){
+    facts=f;serverRows(f);browserRows();addrRows(f);
+    var sel=$('#ifSel');sel.innerHTML='';f.addresses.forEach(function(a,i){var o=document.createElement('option');o.value=i;o.textContent='Network: '+a.name+' ('+a.ip+')';sel.appendChild(o)});
+    sel.onchange=function(){showTablet(facts)};showTablet(f);tabletState(f.tablets);
+    return Promise.all([cameraRow(),promoRow(f),netRow()]);
+  }).then(render).catch(function(e){
+    rows=[{group:'Computer',state:'bad',title:'Booth server',detail:'This page could not reach the booth server ('+e.message+'). Start Booth.command must stay open.'}];render();
+  });
+}
+$('#again').onclick=run;
+setInterval(function(){fetch('/info',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){tabletState(j.tablets)}).catch(function(){})},2000);
+run();
+})();
+</script>
+</body>
+</html>

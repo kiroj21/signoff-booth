@@ -1,0 +1,33 @@
+{
+  "_note": "Settings for this booth. Branding (name, logo, colours, wording, consent) is in brand/brand.json, not here. Most values below are set in the recorder (Settings > Save settings, and Where clips are saved > Apply), which writes this file. 'launcher' is read by the start scripts: port and chromeApp only. 'storage' says where clips are saved: this laptop ('local'), another folder ('custom'), or a Google Drive for desktop account (location 'My Drive' or 'Shared drives/<name>'), plus a backup on a USB stick, a folder, or none. On Linux, add storage.sync to upload with rclone, see the README. The camera choice is not stored here (it differs per computer).",
+  "launcher": {
+    "port": 8080,
+    "chromeApp": "Google Chrome"
+  },
+  "storage": {
+    "account": "",
+    "location": "local",
+    "customPath": "",
+    "folder": "Sign-Off Booth",
+    "backup": "none",
+    "usbName": "BOOTH-USB",
+    "backupFolder": ""
+  },
+  "recorder": {
+    "countdown": 5,
+    "maxLen": 20,
+    "retakes": 1,
+    "idleSec": 30,
+    "shareSec": 30,
+    "thanksSec": 4,
+    "attractSec": 30,
+    "flipPreview": true,
+    "flipSaved": true,
+    "branded": true,
+    "brandMode": "after",
+    "linkHours": 72,
+    "logoMode": "auto",
+    "logoPos": "br",
+    "logoSize": 12
+  }
+}

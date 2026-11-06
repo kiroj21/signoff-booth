@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Booth control panel</title>
+<!-- Control panel for the booth. Opens on the booth laptop only (http://localhost:PORT/control).
+     It edits brand/brand.json, the logo files in brand/, and the main recorder settings. The preview on the right is the real tablet page. -->
+<style>
+:root{--ink:#1d2430;--soft:#5b6675;--line:#d9dee5;--bg:#f2f4f7;--card:#fff;--blue:#1f5aa6;--blue-d:#164582;--red:#b3261e;--green:#1f7a43}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:16px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0;font-weight:700}
+header nav{display:flex;gap:14px;font-size:14px;margin-left:8px}
+header nav a{color:var(--blue);text-decoration:none}header nav a:hover{text-decoration:underline}
+header .sp{flex:1}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 16px;border-radius:8px;font-weight:600}
+.btn:hover{border-color:#aab3bf}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}.btn.pri:hover{background:var(--blue-d)}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.status{font-size:14px;color:var(--soft);min-width:160px;text-align:right}
+.status.ok{color:var(--green)}.status.bad{color:var(--red);font-weight:600}.status.dirty{color:#8a5a00}
+.wrap{display:grid;grid-template-columns:minmax(380px,1fr) minmax(420px,1.15fr);gap:24px;padding:24px;max-width:1500px;margin:0 auto;align-items:start}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}.pv{position:static!important}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+.card h2{font-size:17px;margin:0 0 4px}
+.card .hint{color:var(--soft);font-size:14px;margin:0 0 14px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+label small{font-weight:400;color:var(--soft)}
+input[type=text],input[type=number],textarea,select{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--blue);outline-offset:0;border-color:var(--blue)}
+textarea{resize:vertical;min-height:86px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.count{font-size:12px;color:var(--soft);text-align:right;margin-top:2px}
+.logo-box{display:flex;gap:16px;align-items:center;border:1px dashed #aab3bf;border-radius:10px;padding:12px;background:repeating-conic-gradient(#f3f4f6 0 25%,#fff 0 50%) 0 0/16px 16px}
+.logo-box img{height:64px;max-width:200px;object-fit:contain;background:transparent}
+.logo-box .meta{font-size:13px;color:var(--soft);background:rgba(255,255,255,.85);padding:4px 8px;border-radius:6px}
+.swatches{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.sw{display:flex;align-items:center;gap:10px}
+.sw input[type=color]{width:44px;height:38px;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;flex:none}
+.sw input[type=text]{font-family:ui-monospace,Menlo,monospace;width:100%}
+.sw span{font-size:13px;font-weight:600;display:block;margin-bottom:2px}
+.warn{background:#fff6e5;border:1px solid #f0d49b;color:#6b4800;border-radius:8px;padding:8px 12px;font-size:13px;margin-top:10px}
+.warn[hidden]{display:none}
+details{margin-top:12px}summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue)}
+.chk{display:flex;gap:8px;align-items:flex-start;font-weight:500;font-size:14px;margin:10px 0}.chk input{margin-top:3px}
+.sample{margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px}
+.pv{position:sticky;top:76px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tabs button{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:999px;font-size:14px;font-weight:600;color:var(--soft)}
+.tabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.frame{position:relative;width:100%;aspect-ratio:1280/800;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#000;box-shadow:0 8px 24px rgba(20,30,45,.12)}
+.frame iframe{position:absolute;left:0;top:0;width:1280px;height:800px;border:0;transform-origin:0 0}
+.pvnote{font-size:13px;color:var(--soft);margin-top:8px}
+.lbl{font-size:13px;color:var(--soft);margin-bottom:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Booth control panel</h1>
+  <nav><a href="/recorder">Recorder</a><a href="/check">Check page</a><a id="lnkTablet" href="/tablet" target="_blank">Open tablet page</a><a id="lnkMarks" href="/tablet?marks=1" target="_blank">Show editable spots</a></nav>
+  <span class="sp"></span>
+  <span class="status" id="status" role="status" aria-live="polite"></span>
+  <button class="btn danger" id="reset" type="button">Reset to defaults</button>
+  <button class="btn pri" id="save" type="button">Save</button>
+</header>
+
+<div class="wrap">
+<div>
+
+<section class="card">
+  <h2>Event</h2>
+  <p class="hint">Shown at the top of the tablet panel and on the thank-you and download pages. Keep each title line short (about 12 letters): long lines wrap and crowd the panel.</p>
+  <label for="org">Organisation name</label>
+  <input type="text" id="org" data-p="brand.organisation" maxlength="60">
+  <div class="row3">
+    <div><label for="l1">Title, line 1</label><input type="text" id="l1" data-p="brand.event.line1" maxlength="30"></div>
+    <div><label for="l2">Title, line 2</label><input type="text" id="l2" data-p="brand.event.line2" maxlength="30"></div>
+    <div><label for="yr">Year or date</label><input type="text" id="yr" data-p="brand.event.year" maxlength="12"></div>
+  </div>
+  <label for="tag">Tagline <small>(one short line, shown on the start screen)</small></label>
+  <input type="text" id="tag" data-p="brand.tagline" maxlength="80">
+</section>
+
+<section class="card">
+  <h2>Logo</h2>
+  <p class="hint">Choose any picture: PNG, JPG, SVG or WebP. A PNG with a transparent background looks best. It is saved when you press Save.</p>
+  <div class="logo-box"><img id="logoImg" alt="Current logo"><span class="meta" id="logoMeta"></span></div>
+  <label for="logoFile">Choose a logo file</label>
+  <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif">
+  <div class="warn" id="logoWarn" hidden></div>
+  <label for="alt">Logo description <small>(read aloud by screen readers)</small></label>
+  <input type="text" id="alt" data-p="brand.logo.alt" maxlength="80">
+  <label for="variants">Other versions <small>(used on the clip with your logo burned in)</small></label>
+  <select id="variants">
+    <option value="auto">Make them for me: a white version and one with a white outline</option>
+    <option value="same">Use the same image for all of them</option>
+    <option value="own">I will choose each one myself</option>
+  </select>
+  <div id="ownBox" hidden>
+    <label for="fBorder">With a white outline <small>(for busy footage)</small></label><input type="file" id="fBorder" accept="image/*">
+    <label for="fLight">White version <small>(for dark footage)</small></label><input type="file" id="fLight" accept="image/*">
+    <label for="fColour">Full colour version</label><input type="file" id="fColour" accept="image/*">
+  </div>
+</section>
+
+<section class="card">
+  <h2>Colours and font</h2>
+  <p class="hint">Pick the three main colours. The darker and lighter shades follow the main colour.</p>
+  <div class="swatches">
+    <div class="sw"><input type="color" data-c="primary" aria-label="Main colour"><div style="flex:1"><span>Main colour</span><input type="text" data-ct="primary" maxlength="7" aria-label="Main colour hex"></div></div>
+    <div class="sw"><input type="color" data-c="accent" aria-label="Accent colour"><div style="flex:1"><span>Accent colour</span><input type="text" data-ct="accent" maxlength="7" aria-label="Accent colour hex"></div></div>
+    <div class="sw"><input type="color" data-c="page" aria-label="Background colour"><div style="flex:1"><span>Background</span><input type="text" data-ct="page" maxlength="7" aria-label="Background colour hex"></div></div>
+    <div class="sw"><input type="color" data-c="text" aria-label="Text colour"><div style="flex:1"><span>Text</span><input type="text" data-ct="text" maxlength="7" aria-label="Text colour hex"></div></div>
+  </div>
+  <div class="warn" id="colWarn" hidden></div>
+  <details>
+    <summary>More colours</summary>
+    <label class="chk"><input type="checkbox" id="autoShades" checked> Work out the darker and lighter shades from the main colour</label>
+    <div class="swatches">
+      <div class="sw"><input type="color" data-c="primaryDark" aria-label="Dark shade"><div style="flex:1"><span>Dark shade of main</span><input type="text" data-ct="primaryDark" maxlength="7"></div></div>
+      <div class="sw"><input type="color" data-c="tint" aria-label="Light tint"><div style="flex:1"><span>Light tint of main</span><input type="text" data-ct="tint" maxlength="7"></div></div>
+      <div class="sw"><input type="color" data-c="muted" aria-label="Grey text"><div style="flex:1"><span>Grey text</span><input type="text" data-ct="muted" maxlength="7"></div></div>
+      <div class="sw"><input type="color" data-c="gold" aria-label="Highlight"><div style="flex:1"><span>Highlight</span><input type="text" data-ct="gold" maxlength="7"></div></div>
+      <div class="sw"><input type="color" data-c="goldDark" aria-label="Dark highlight"><div style="flex:1"><span>Dark highlight</span><input type="text" data-ct="goldDark" maxlength="7"></div></div>
+    </div>
+  </details>
+  <label for="font">Font</label>
+  <select id="font"></select>
+  <div class="sample" id="fontSample">Leave your mark on the glass</div>
+  <p class="hint" style="margin-top:8px">These fonts are already on the laptop and tablet, so the booth works without internet. To use your own font file, see the README.</p>
+</section>
+
+<section class="card">
+  <h2>Wording on the tablet</h2>
+  <p class="hint">What the graduate reads. Leave a box empty to go back to its standard wording.</p>
+  <label for="wt">Start screen: title</label><input type="text" id="wt" data-p="brand.text.welcomeTitle" maxlength="80">
+  <label for="wb">Start screen: text</label><input type="text" id="wb" data-p="brand.text.welcomeBody" maxlength="200">
+  <label for="tt">Thank-you: title</label><input type="text" id="tt" data-p="brand.text.thanksTitle" maxlength="60">
+  <label for="tb">Thank-you: text</label><input type="text" id="tb" data-p="brand.text.thanksBody" maxlength="160">
+  <label for="hp">Who to ask for help <small>("Please ask ... for help")</small></label><input type="text" id="hp" data-p="brand.text.helpPerson" maxlength="80">
+  <details>
+    <summary>Idle screen (when nobody has touched the tablet)</summary>
+    <label for="at">Title</label><input type="text" id="at" data-p="brand.text.attractTitle" maxlength="80">
+    <label for="as">Line under the title</label><input type="text" id="as" data-p="brand.text.attractSub" maxlength="160">
+    <label for="ap">Button text</label><input type="text" id="ap" data-p="brand.text.attractTap" maxlength="60">
+  </details>
+  <details>
+    <summary>Download page (what the graduate sees on their phone)</summary>
+    <label for="st">Title</label><input type="text" id="st" data-p="brand.text.shareTitle" maxlength="80">
+    <label for="sl">Message</label><input type="text" id="sl" data-p="brand.text.shareLead" maxlength="160">
+    <label for="sd">Download button</label><input type="text" id="sd" data-p="brand.text.shareDownload" maxlength="40">
+    <label for="si">iPhone tip</label><input type="text" id="si" data-p="brand.text.shareIphone" maxlength="200">
+    <label for="sw">If the clip is not ready yet</label><input type="text" id="sw" data-p="brand.text.shareWait" maxlength="160">
+  </details>
+</section>
+
+<section class="card">
+  <h2>Consent</h2>
+  <p class="hint">Shown at the bottom of the start screen. Say who films, what the clip is for, and who to tell if someone changes their mind. You are responsible for this wording: see "Consent and privacy" in the README.</p>
+  <label for="consent">Consent text</label>
+  <textarea id="consent" data-p="brand.consent" maxlength="400"></textarea>
+  <div class="count" id="consentCount"></div>
+  <div class="warn" id="consentWarn" hidden>This is still the placeholder wording. Replace it before the event.</div>
+</section>
+
+<section class="card">
+  <h2>Recording</h2>
+  <div class="row">
+    <div><label for="cd">Countdown <small>(seconds, 0 to 10)</small></label><input type="number" id="cd" data-p="recorder.countdown" min="0" max="10"></div>
+    <div><label for="ml">Longest clip <small>(seconds, 5 to 60)</small></label><input type="number" id="ml" data-p="recorder.maxLen" min="5" max="60"></div>
+  </div>
+  <p class="hint" style="margin-top:10px">More timings and the camera are in the recorder's Settings.</p>
+</section>
+
+<section class="card">
+  <h2>Sharing and QR code</h2>
+  <div class="row3">
+    <div><label for="lh">Link works for <small>(hours)</small></label><input type="number" id="lh" data-p="recorder.linkHours" min="1" max="720"></div>
+    <div><label for="ss">QR screen stays <small>(seconds)</small></label><input type="number" id="ss" data-p="recorder.shareSec" min="10" max="120"></div>
+    <div><label for="ts">Thank-you stays <small>(seconds)</small></label><input type="number" id="ts" data-p="recorder.thanksSec" min="2" max="15"></div>
+  </div>
+  <label for="sb">Share address <small>(leave empty to share from this laptop; phones must be on the same Wi-Fi)</small></label>
+  <input type="text" id="sb" data-p="recorder.shareBase" maxlength="500" placeholder="https://example.org/clip?c=">
+</section>
+
+<p class="pvnote" id="where"></p>
+</div>
+
+<aside class="pv">
+  <div class="lbl">Live preview of the tablet (nothing is saved until you press Save)</div>
+  <div class="tabs" id="tabs"></div>
+  <div class="frame" id="frame"><iframe id="pv" src="/tablet?preview=1" title="Tablet preview"></iframe></div>
+  <p class="pvnote">The preview is the real tablet page. The grey picture stands in for the camera. After you save, tablets that are on the start or thank-you screen reload by themselves.</p>
+</aside>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)},$$=function(s){return [].slice.call(document.querySelectorAll(s))};
+var cfg=null,data=null,dirty=false,staged={main:null,border:null,light:null,colour:null},stagedUrl='',screen='welcome',pvReady=false,tmr=0;
+var SCREENS=[['welcome','Start'],['countdown','Countdown'],['recording','Recording'],['share','QR code'],['thanks','Thank you'],['attract','Idle screen']];
+
+function get(o,p){return p.split('.').reduce(function(x,k){return x==null?x:x[k]},o)}
+function set(o,p,v){var a=p.split('.'),k=a.pop();a.forEach(function(s){if(typeof o[s]!=='object'||!o[s])o[s]={};o=o[s]});o[k]=v}
+function say(t,cls){var s=$('#status');s.textContent=t||'';s.className='status'+(cls?' '+cls:'')}
+function markDirty(){dirty=true;say('Unsaved changes','dirty')}
+function api(url,opt){
+  opt=opt||{};opt.headers=Object.assign({'X-Booth-Control':'1'},opt.headers||{});
+  return fetch(url,opt).then(function(r){return r.json().catch(function(){return {ok:false,error:'The booth did not answer properly.'}}).then(function(j){if(!r.ok&&!j.error)j.error='Request failed ('+r.status+').';j.status=r.status;return j})});
+}
+
+/* ---- colour helpers ---- */
+function hex2rgb(h){return [1,3,5].map(function(i){return parseInt(h.substr(i,2),16)})}
+function rgb2hex(a){return '#'+a.map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return (v<16?'0':'')+v.toString(16)}).join('').toUpperCase()}
+function mix(h,t,k){var a=hex2rgb(h),b=hex2rgb(t);return rgb2hex(a.map(function(v,i){return v+(b[i]-v)*k}))}
+function lum(h){var c=hex2rgb(h).map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function contrast(a,b){var x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+var HEX=/^#[0-9a-fA-F]{6}$/;
+
+/* ---- fill the form from cfg ---- */
+function fill(){
+  $$('[data-p]').forEach(function(el){var v=get(cfg,el.dataset.p);el.value=v==null?'':v});
+  $$('[data-c]').forEach(function(el){el.value=cfg.brand.colors[el.dataset.c]});
+  $$('[data-ct]').forEach(function(el){el.value=cfg.brand.colors[el.dataset.ct]});
+  $('#font').value=cfg.brand.fonts.preset||'classic';
+  fontSample();consentInfo();colourWarn();
+}
+function fontSample(){var f=data.fontPresets[$('#font').value]||data.fontPresets.classic;$('#fontSample').style.fontFamily=f.serif;$('#fontSample').textContent='Leave your mark on the glass'}
+function consentInfo(){var n=$('#consent').value.length;$('#consentCount').textContent=n+' / 400';$('#consentWarn').hidden=!/\[EDIT ME\]/.test($('#consent').value)}
+function colourWarn(){
+  var c=cfg.brand.colors,m=[];
+  if(contrast('#FFFFFF',c.primary)<4.5)m.push('White text on the main colour is hard to read. Pick a darker main colour.');
+  if(contrast(c.page,c.text)<4.5)m.push('The text colour is too close to the background colour.');
+  if(contrast(c.page,c.accent)<3)m.push('The accent colour is hard to see on the background.');
+  var w=$('#colWarn');w.hidden=!m.length;w.textContent=m.join(' ');
+}
+
+/* ---- inputs ---- */
+document.addEventListener('input',function(e){
+  var el=e.target;
+  if(el.dataset.p){
+    var v=el.value;
+    if(el.type==='number'){v=el.value===''?'':+el.value}
+    set(cfg,el.dataset.p,v);
+    if(el.id==='consent')consentInfo();
+    changed();
+  }else if(el.dataset.c||el.dataset.ct){
+    var k=el.dataset.c||el.dataset.ct,v2=el.value;
+    if(el.dataset.ct){v2=v2.trim();if(v2&&v2[0]!=='#')v2='#'+v2;if(!HEX.test(v2))return}
+    setColour(k,v2.toUpperCase());changed();
+  }
+});
+function setColour(k,v){
+  cfg.brand.colors[k]=v;
+  if(k==='primary'&&$('#autoShades').checked){cfg.brand.colors.primaryDark=mix(v,'#000000',.35);cfg.brand.colors.tint=mix(v,'#FFFFFF',.9)}
+  $$('[data-c]').forEach(function(el){el.value=cfg.brand.colors[el.dataset.c]});
+  $$('[data-ct]').forEach(function(el){if(el!==document.activeElement)el.value=cfg.brand.colors[el.dataset.ct]});
+  colourWarn();
+}
+$('#font').addEventListener('change',function(){cfg.brand.fonts.preset=this.value;fontSample();changed()});
+$('#variants').addEventListener('change',function(){$('#ownBox').hidden=this.value!=='own';markDirty()});
+['border','light','colour'].forEach(function(k){$('#f'+k[0].toUpperCase()+k.slice(1)).addEventListener('change',function(){stageFile(k,this.files[0])})});
+$('#logoFile').addEventListener('change',function(){stageFile('main',this.files[0])});
+function changed(){markDirty();clearTimeout(tmr);tmr=setTimeout(sendPreview,60)}
+
+/* ---- logo: any picture in, PNG out ---- */
+function loadImg(file){
+  return new Promise(function(ok,no){
+    var u=URL.createObjectURL(file),i=new Image();
+    i.onload=function(){ok({img:i,url:u})};i.onerror=function(){URL.revokeObjectURL(u);no(new Error('That file could not be read as a picture.'))};i.src=u;
+  });
+}
+function drawScaled(img){
+  var w=img.naturalWidth||800,h=img.naturalHeight||300,k=Math.min(1,1200/w,500/h);
+  var c=document.createElement('canvas');c.width=Math.max(16,Math.round(w*k));c.height=Math.max(16,Math.round(h*k));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c;
+}
+function hasAlpha(c){
+  var d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+  for(var i=3;i<d.length;i+=4*7)if(d[i]<250)return true;return false;
+}
+function whiteOf(c){
+  var o=document.createElement('canvas');o.width=c.width;o.height=c.height;var x=o.getContext('2d');
+  x.drawImage(c,0,0);x.globalCompositeOperation='source-in';x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);return o;
+}
+function outlineOf(c){
+  var r=Math.max(4,Math.round(c.height*.03)),o=document.createElement('canvas');o.width=c.width+2*r;o.height=c.height+2*r;
+  var x=o.getContext('2d'),w=whiteOf(c);
+  for(var a=0;a<24;a++){var t=a/24*Math.PI*2;x.drawImage(w,r+Math.cos(t)*r,r+Math.sin(t)*r)}
+  x.drawImage(c,r,r);return o;
+}
+function blobOf(c){
+  return new Promise(function(ok,no){
+    (function go(cv){cv.toBlob(function(b){
+      if(!b)return no(new Error('Could not convert the picture.'));
+      if(b.size<=data.limits.logoBytes)return ok(b);
+      var s=document.createElement('canvas');s.width=Math.round(cv.width*.7);s.height=Math.round(cv.height*.7);s.getContext('2d').drawImage(cv,0,0,s.width,s.height);go(s);
+    },'image/png')})(c);
+  });
+}
+function stageFile(kind,file){
+  var warn=$('#logoWarn');warn.hidden=true;
+  if(!file)return;
+  if(file.size>10*1024*1024){warn.hidden=false;warn.textContent='That file is over 10 MB. Choose a smaller picture.';return}
+  if(!/^image\//.test(file.type)){warn.hidden=false;warn.textContent='Choose a picture file (PNG, JPG, SVG, WebP or GIF).';return}
+  loadImg(file).then(function(r){
+    var c=drawScaled(r.img);URL.revokeObjectURL(r.url);
+    var solid=!hasAlpha(c);
+    return blobOf(c).then(function(b){
+      staged[kind]={blob:b,canvas:c,solid:solid};
+      if(kind==='main'){
+        if(stagedUrl)URL.revokeObjectURL(stagedUrl);stagedUrl=URL.createObjectURL(b);
+        if(solid){warn.hidden=false;warn.textContent='This picture has a solid background, so a white version or an outline would look like a box. The same image will be used for every version. A PNG with a transparent background is better.';$('#variants').value='same'}
+      }
+      logoShow();changed();
+    });
+  }).catch(function(e){warn.hidden=false;warn.textContent=e.message});
+}
+function logoShow(){
+  var s=staged.main?stagedUrl:'/logo.png?v='+(data.logos.main||0);
+  $('#logoImg').src=s;
+  $('#logoMeta').textContent=staged.main?'New logo, not saved yet':'Current logo';
+}
+
+/* ---- preview ---- */
+function varsCss(B){
+  var c=B.colors,f=data.fontPresets[B.fonts.preset]||data.fontPresets.classic;
+  return ':root{--brand:'+c.primary+';--brand-dark:'+c.primaryDark+';--accent:'+c.accent+';--brand-tint:'+c.tint+';--gold:'+c.gold+';--gold-dark:'+c.goldDark+';--page:'+c.page+';--text:'+c.text+';--muted:'+c.muted+';--serif:'+f.serif+';--sans:'+f.sans+'}';
+}
+function or(v,d){return v===''||v==null?d:v}
+function previewBrand(){
+  var B=JSON.parse(JSON.stringify(cfg.brand)),D=data.defaults;
+  B.organisation=or(B.organisation,D.organisation);
+  Object.keys(D.text).forEach(function(k){B.text[k]=or(B.text[k],D.text[k])});
+  B.consent=or(B.consent,D.consent);return B;
+}
+function sendPreview(){
+  if(!pvReady)return;
+  var B=previewBrand(),R=cfg.recorder,max=Math.max(5,Math.min(60,+R.maxLen||20));
+  var base={count:12,consent:B.consent,attractSec:60,shareBase:B.shareBase||R.shareBase||'',linkHours:+R.linkHours||72};
+  var st={
+    welcome:{st:'welcome'},
+    attract:{st:'welcome'},
+    countdown:{st:'countdown',num:Math.max(1,Math.min(+R.countdown||3,3)),max:max},
+    recording:{st:'recording',left:Math.round(max*.7),max:max},
+    share:{st:'share',code:'preview',shareLeft:+R.shareSec||30,retakesLeft:0},
+    thanks:{st:'thanks',count:13}
+  }[screen];
+  var url=staged.main?stagedUrl:'/logo.png?v='+(data.logos.main||0);
+  $('#pv').contentWindow.postMessage({type:'booth-preview',brand:B,vars:varsCss(B),state:Object.assign({},base,st),attract:screen==='attract',logoUrl:url},location.origin);
+}
+window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='booth-preview-ready'){pvReady=true;sendPreview()}});
+function fit(){var w=$('#frame').clientWidth;$('#pv').style.transform='scale('+(w/1280)+')'}
+window.addEventListener('resize',fit);
+$('#tabs').innerHTML=SCREENS.map(function(s){return '<button type="button" data-s="'+s[0]+'"'+(s[0]===screen?' class="on"':'')+'>'+s[1]+'</button>'}).join('');
+$('#tabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;screen=b.dataset.s;$$('#tabs button').forEach(function(x){x.classList.toggle('on',x===b)});sendPreview()});
+
+/* ---- save, reset ---- */
+function uploads(){
+  var mode=$('#variants').value,ups=[],m=staged.main;
+  function up(kind,blob){ups.push(function(){return fetch('/control/upload?kind='+kind,{method:'POST',headers:{'X-Booth-Control':'1','Content-Type':'image/png'},body:blob}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||'Logo upload failed.')})})}
+  if(m){
+    if(mode==='same')up('all',m.blob);
+    else if(mode==='auto'){up('main',m.blob);up('colour',m.blob);ups.push(function(){return blobOf(whiteOf(m.canvas)).then(function(b){return upNow('light',b)})});ups.push(function(){return blobOf(outlineOf(m.canvas)).then(function(b){return upNow('border',b)})})}
+    else up('main',m.blob);
+  }
+  if(mode==='own')['border','light','colour'].forEach(function(k){if(staged[k])up(k,staged[k].blob)});
+  return ups;
+}
+function upNow(kind,blob){return fetch('/control/upload?kind='+kind,{method:'POST',headers:{'X-Booth-Control':'1','Content-Type':'image/png'},body:blob}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||'Logo upload failed.')})}
+function chain(fns){return fns.reduce(function(p,f){return p.then(f)},Promise.resolve())}
+function save(){
+  var bad=Object.keys(cfg.brand.colors).filter(function(k){return !HEX.test(cfg.brand.colors[k])});
+  if(bad.length){say('Fix the colour '+bad[0],'bad');return}
+  $('#save').disabled=true;say('Saving...');
+  var payload={brand:{organisation:cfg.brand.organisation,event:cfg.brand.event,tagline:cfg.brand.tagline,colors:cfg.brand.colors,fonts:{preset:cfg.brand.fonts.preset},logo:{alt:cfg.brand.logo.alt},text:cfg.brand.text,consent:cfg.brand.consent,shareBase:cfg.recorder.shareBase||''},
+    recorder:{countdown:cfg.recorder.countdown,maxLen:cfg.recorder.maxLen,linkHours:cfg.recorder.linkHours,shareSec:cfg.recorder.shareSec,thanksSec:cfg.recorder.thanksSec}};
+  chain(uploads()).then(function(){
+    return api('/control/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }).then(function(j){
+    if(!j.ok)throw new Error(j.error||'Could not save.');
+    staged={main:null,border:null,light:null,colour:null};['#logoFile','#fBorder','#fLight','#fColour'].forEach(function(s){$(s).value=''});
+    adopt(j.data);dirty=false;say('Saved. Tablets reload by themselves.','ok');
+  }).catch(function(e){say(e.message,'bad')}).then(function(){$('#save').disabled=false});
+}
+$('#save').addEventListener('click',save);
+$('#reset').addEventListener('click',function(){
+  if(!confirm('Put back the standard logo, colours, wording and timings?\n\nYour current branding is kept in brand/brand.previous.json.'))return;
+  api('/control/reset',{method:'POST'}).then(function(j){
+    if(!j.ok)throw new Error(j.error||'Could not reset.');
+    staged={main:null,border:null,light:null,colour:null};$('#logoWarn').hidden=true;
+    adopt(j.data);dirty=false;say('Back to the standard settings.','ok');
+  }).catch(function(e){say(e.message,'bad')});
+});
+window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=''}});
+
+/* ---- start ---- */
+function adopt(d){
+  data=d;
+  cfg={brand:JSON.parse(JSON.stringify(d.brand)),recorder:JSON.parse(JSON.stringify(d.recorder))};
+  cfg.brand.fonts.preset=cfg.brand.fonts.preset||'classic';
+  $('#font').innerHTML=Object.keys(d.fontPresets).map(function(k){return '<option value="'+k+'">'+d.fontPresets[k].label+'</option>'}).join('');
+  $('#lnkTablet').href='/tablet?k='+d.key;$('#lnkMarks').href='/tablet?k='+d.key+'&marks=1';
+  $('#where').textContent='Branding is saved to '+d.brandFile+'. Timings are saved to booth-settings.json.';
+  fill();logoShow();fit();sendPreview();
+}
+api('/control/data').then(function(d){if(d.error)throw new Error(d.error);adopt(d);say('')}).catch(function(e){say(e.message,'bad')});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="color-scheme" content="only light"><style>:root{color-scheme:only light}</style>
+<title>{{organisation}} Sign-Off Booth</title>
+<!-- Sign-Off Booth tablet screen (9 Oct 2026). The graduate's photobooth screens.
+     Served by booth-server.js on the laptop. The laptop records; this page shows and sends taps. -->
+<style>
+/* colours and fonts: the server overwrites the brand ones from brand/brand.json (see <style id="brand-vars">); these are the neutral defaults */
+:root{--brand-dark:#162B3D;--brand:#24435E;--accent:#E8590C;--brand-tint:#E4ECF2;--gold:#C9A227;--gold-dark:#876712;
+  --paper:#fff;--page:#F5F6F7;--text:#161A1D;--muted:#505A61;--line:rgba(22,26,29,.14);--success:#1F7A43;--error:#B3261E;
+  --shadow:0 10px 30px rgba(20,30,45,.10),0 2px 6px rgba(20,30,45,.06);
+  --serif:Georgia,'Times New Roman',serif;--sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overscroll-behavior:none;touch-action:manipulation}
+body{background:var(--page);color:var(--text);font-family:var(--sans);font-size:18px;line-height:1.5;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+/* one panel, one size, on every screen. The sans font for all text; the serif font only for small highlights (tag line, counter, step numbers). */
+.app{--pw:clamp(340px,32vw,460px);height:100%;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);gap:24px;padding:24px}
+.stagewrap{position:fixed;inset:0;z-index:0}
+.stage{position:relative;width:100%;height:100%;background:#000;overflow:hidden}
+.stage img.prev{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:filter .3s}
+.stage video{position:absolute;left:24px;top:24px;width:calc(100% - var(--pw) - 72px);height:calc(100% - 48px);object-fit:contain;background:transparent;border-radius:14px}
+.stage.review img.prev,.stage.share img.prev,.stage.thanks img.prev,.stage.saving img.prev{filter:blur(18px) brightness(.45)}
+.stage video{display:none}
+.stage.review video,.stage.share video,.stage.thanks video{display:block}
+.ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px calc(var(--pw) + 48px) 24px 24px}
+.stage.welcome .ov-welcome,.stage.countdown .ov-count,.stage.saving .ov-note,.stage.thanks .ov-note,.stage.off .ov-msg,.stage.nocam .ov-msg,.stage.init .ov-msg,.stage.savefail .ov-msg{display:flex}
+/* welcome: live camera, with the consent as a slim bar at the bottom */
+.ov-welcome{justify-content:flex-end;align-items:stretch}
+.consent{padding:10px 20px;border-radius:12px;background:rgba(26,20,22,.78);font-size:16px;line-height:1.35;color:#fff;text-align:center}
+.ov-count{background:rgba(26,20,22,.55)}
+.num{font-family:var(--sans);font-weight:700;font-size:clamp(150px,42vh,420px);line-height:1;color:#fff}
+.numsub{font-size:clamp(24px,4.4vh,44px);font-weight:700;color:#fff}
+.ov-note{background:rgba(26,20,22,.55);color:#fff;font-family:var(--sans);font-weight:700;font-size:clamp(40px,7vh,72px)}
+/* one clear message screen (no camera, paused, save failed); the panel is hidden while it shows */
+.ov-msg{background:var(--paper);padding:48px}
+.msglogo{position:absolute;top:32px;right:32px;height:clamp(96px,12.5vh,118px);width:auto}
+.ov-msg h2{font-family:var(--sans);font-weight:700;font-size:clamp(44px,7vh,68px);line-height:1.1;margin-bottom:16px;color:var(--brand)}
+.ov-msg p{color:var(--text);font-size:clamp(24px,3.4vh,32px);line-height:1.4;max-width:32ch}
+.ov-msg p:empty{display:none}
+.ov-msg p.help{font-weight:700;margin-top:20px}
+.ov-msg .btn{margin-top:36px;width:min(86%,520px)}
+.ov-msg .link{font-size:22px;margin-top:24px}
+.stage.nocam .ov-msg h2,.stage.savefail .ov-msg h2{color:var(--error)}
+.app[data-st=off] .panel,.app[data-st=init] .panel,.app[data-st=nocam] .panel,.app[data-st=savefail] .panel{display:none}
+.ov-wait{color:#fff;font-family:var(--sans);font-weight:700;font-size:clamp(36px,6vh,60px);line-height:1.15}
+.stage.noreplay .ov-wait{display:flex}
+.spin{width:84px;height:84px;border-radius:50%;border:8px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin 1s linear infinite;margin-bottom:28px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.badge{position:absolute;top:2.4%;left:2%;display:none;align-items:center;gap:.45em;padding:.25em .7em;border-radius:999px;background:rgba(26,20,22,.82);color:#fff;font-weight:700;letter-spacing:.06em;font-size:clamp(26px,5.4vh,56px);line-height:1.2}
+.dot{width:.55em;height:.55em;border-radius:50%;background:#FF3B30;box-shadow:0 0 0 .12em rgba(255,59,48,.35);animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.left{position:absolute;top:24px;right:calc(var(--pw) + 48px);display:none;flex-direction:column;align-items:flex-end;padding:.15em .5em .25em;border-radius:18px;background:rgba(26,20,22,.78);color:#fff;font-family:var(--sans);font-weight:700;font-size:clamp(60px,14vh,150px);line-height:1}
+.left small{font-family:var(--sans);font-weight:700;font-size:.2em;letter-spacing:.08em;text-transform:uppercase;margin-top:.15em}
+.left.low{background:var(--error)}
+.stage.recording .badge{display:inline-flex}.stage.recording .left{display:flex}
+.bar{position:absolute;left:0;bottom:0;height:14px;max-width:calc(100% - var(--pw) - 48px);background:var(--accent);width:0;display:none}
+.stage.recording .bar{display:block}
+.tag{position:absolute;top:40px;left:40px;display:none;padding:8px 18px;border-radius:999px;background:rgba(26,20,22,.78);color:#fff;font-weight:700;font-size:clamp(18px,3vh,28px)}
+.stage.review .tag,.stage.share .tag{display:inline-block}
+.stage.noreplay .tag{display:none}
+/* the panel: header (counter left, logo top right), copy, steps or QR, buttons at the bottom */
+.panel{grid-column:2;position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;min-height:0;overflow:hidden;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:14px;padding:32px;box-shadow:var(--shadow)}
+.panel>div:first-child{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.logo{display:block;height:clamp(96px,12.5vh,118px);width:auto;flex:none}
+.event{color:var(--brand)}
+.event .w{font-size:22px;line-height:1.15;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.event .yr{font-weight:700;font-size:clamp(52px,6.4vh,60px);line-height:1;letter-spacing:-.01em;color:var(--accent);margin-top:2px}
+.tagl{display:none;font-family:var(--serif);font-weight:400;font-size:22px;line-height:1.2;color:var(--accent);margin-bottom:6px}
+.app[data-st=welcome] .tagl{display:block}
+.stlabel{margin-top:16px;font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.app.share .stlabel,.app[data-st=off] .stlabel{display:none}
+.foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);font-size:20px;color:var(--muted);display:flex;align-items:baseline;gap:10px}
+.foot b{font-family:var(--serif);font-size:36px;line-height:1;color:var(--accent);font-weight:400}
+.copy{flex:none;margin-top:20px}
+h1{font-family:var(--sans);font-weight:700;font-size:clamp(30px,3.2vw,40px);line-height:1.15;margin:0 0 12px;color:var(--brand);text-wrap:balance}
+.body{font-size:clamp(22px,2.8vh,26px);line-height:1.4;font-weight:500;text-wrap:pretty}
+.note{margin-top:8px;font-weight:700;color:var(--brand);font-size:20px;min-height:2.9em}
+.app[data-st=review] #idle[hidden]{display:block;visibility:hidden}
+.small{font-size:20px;color:var(--muted);margin-top:8px;text-wrap:pretty}
+/* progress steps on every screen except the QR */
+.steps{list-style:none;flex:none;margin:6px 0 0;display:grid;gap:0}
+.steps li{display:flex;align-items:center;gap:12px;min-height:40px;padding:0;color:var(--muted);font-size:20px;line-height:1.2;font-weight:500}
+.steps li b{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-family:var(--serif);font-weight:400;font-size:18px;flex:none;color:var(--muted)}
+.steps li.on{color:var(--text);font-weight:700}
+.steps li.on b{background:var(--brand);border-color:var(--brand);color:#fff}
+.steps li.done b{background:var(--success);border-color:var(--success);color:#fff;font-size:0}
+.steps li.done b::after{content:'\2713';font-family:var(--sans);font-weight:700;font-size:20px}
+.app.share .steps,.app[data-st=off] .steps{display:none}
+.qr{margin-top:auto;margin-bottom:8px}
+.qr{display:none;margin-top:16px;text-align:center}
+.qr canvas{width:min(100%,400px,calc(100vh - 575px));height:auto;aspect-ratio:1;display:block;border-radius:8px;margin:0 auto}
+.app.share .qr{display:block}
+.app.share .copy{min-height:0}
+.app.share .body{font-size:24px}
+.app.share .note{font-weight:400;color:var(--muted);min-height:0;margin-top:8px}
+.actions{display:flex;flex-direction:column;gap:16px}
+.btn{min-height:84px;border-radius:14px;font-weight:700;font-size:26px;display:flex;align-items:center;justify-content:center}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff}
+.btn.secondary{border:2px solid var(--brand);color:var(--brand);background:var(--paper)}
+.btn[hidden]{display:none}
+.link{font-size:18px;color:var(--muted);margin-top:6px}
+.link.bad{color:var(--error);font-weight:700}
+.app[data-st=thanks] h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,3.4vw,44px);line-height:1.12}
+/* attract: promo video, or a branded slide until the video is supplied */
+.attract{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;flex-direction:column;background:var(--page);text-align:center}
+.attract.on{display:flex}
+.attract video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.attract .slide{display:flex;flex-direction:column;align-items:center;gap:20px}
+.attract .slide img{height:min(40vh,360px)}
+.attract h2{font-family:var(--sans);font-weight:700;font-size:clamp(40px,7vh,72px);color:var(--brand);line-height:1.1;text-wrap:balance}
+.attract .sub{font-size:clamp(24px,3.6vh,34px);color:var(--muted)}
+.attract .tap{position:absolute;bottom:6%;left:50%;transform:translateX(-50%);padding:16px 34px;border-radius:999px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;font-weight:700;font-size:clamp(22px,3.6vh,34px);box-shadow:0 10px 30px rgba(0,0,0,.25);animation:pulse 2s ease-in-out infinite;white-space:nowrap}
+@keyframes pulse{50%{transform:translateX(-50%) scale(1.05)}}
+.ov-msg h2{text-wrap:balance}
+.consent{text-wrap:balance}
+@media (max-aspect-ratio:1/1){.app{grid-template-columns:1fr;height:auto}.stagewrap{position:static}.stage{height:auto;aspect-ratio:16/9;border-radius:14px}.stage video{left:0;top:0;width:100%;height:100%}.ov{padding:24px}.left{right:2%}.panel{grid-column:1}body{overflow:auto}}
+@media (max-height:860px){.panel{padding:24px 28px}.copy{margin-top:14px}.steps{margin-top:12px;gap:6px}.steps li{min-height:30px}.stlabel{margin-top:10px}.tagl{margin-bottom:2px}.btn{min-height:72px;font-size:24px}.qr canvas{width:min(100%,400px,calc(100vh - 620px))}}
+
+/* ===== common fixes ===== */
+.app{--pw:clamp(360px,30vw,440px)}
+.logo,.msglogo{height:100px}
+.event{display:flex;flex-direction:column;justify-content:space-between;height:100px}
+.event .w{font-size:20px;line-height:1.15;letter-spacing:.14em}
+.event .yr{font-size:52px;line-height:1;margin:0}
+.hud{position:absolute;top:24px;left:24px;display:none;gap:12px;align-items:stretch}
+.stage.recording .hud{display:flex}
+.hud .badge{position:static;display:flex;align-items:center;gap:12px;height:64px;padding:0 24px;border-radius:999px;background:rgba(26,20,22,.82);font-size:26px;letter-spacing:.08em}
+.hud .dot{width:16px;height:16px;font-size:16px}
+.hud .left{position:static;display:flex;flex-direction:row;align-items:center;gap:10px;height:64px;padding:0 24px;border-radius:999px;font-size:40px;line-height:1}
+.hud .left small{font-size:18px;margin:0}
+.num{font-size:clamp(150px,36vh,330px)}.numsub{font-size:40px}
+.ov-note{font-size:clamp(36px,5.6vh,56px)}
+.ov-wait{font-size:clamp(32px,4.8vh,48px)}
+.panel>div:first-child{overflow:visible}
+.btn{font-size:24px}
+.foot{font-size:20px}
+
+/* ===== B: centred, one step at a time ===== */
+.top{padding-bottom:0}
+.steps,.stlabel{display:none!important}
+.panel>div:first-child{overflow:hidden}
+.copy{flex:1;margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px 0}
+.sbadge{width:84px;height:84px;border-radius:50%;background:var(--brand);color:#fff;font-family:var(--serif);font-size:44px;display:grid;place-items:center;margin-bottom:16px}
+.sbadge.ok{background:var(--success);font-family:var(--sans);font-weight:700}
+.slab{font-size:18px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--muted);margin-bottom:12px}
+.slab:empty,.sbadge:empty{display:none}
+h1{font-size:40px;margin-bottom:12px}
+.body{font-size:26px}
+.tagl{font-size:24px;margin-bottom:12px}
+.note{text-align:center}
+.app.share .copy{flex:none;padding:16px 0 0}
+.app.share .sbadge{display:none}
+.app.share .body{font-size:22px}
+.qr{flex:1;display:none;align-items:center;justify-content:center;flex-direction:column;margin:8px 0 0}
+.app.share .qr{display:flex}
+.qr canvas{width:min(100%,360px,calc(100vh - 660px))}
+.foot{justify-content:center}
+@media (max-height:860px){.panel{padding:24px 28px}.logo{height:88px}.event{height:88px}.event .yr{font-size:44px}.sbadge{width:64px;height:64px;font-size:34px;margin-bottom:10px}h1{font-size:34px}.body{font-size:22px}.qr canvas{width:min(100%,360px,calc(100vh - 640px))}}
+/* preview mode: the control panel shows this page in a frame, driven by messages instead of the booth */
+body.preview{pointer-events:none}
+body.preview .stage{background:linear-gradient(160deg,#59636b 0%,#8a949b 45%,#cdb9a3 100%)}
+body.preview .stage::before{content:'camera view';position:absolute;left:24px;top:24px;color:rgba(255,255,255,.55);font:700 18px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="stagewrap">
+    <div class="stage off" id="stage">
+      <img class="prev" id="prev" alt="">
+      <video id="replay" playsinline loop muted></video>
+      <div class="hud"><div class="badge"><span class="dot"></span>REC</div><div class="left" id="left"><span id="leftN">20</span><small>seconds left</small></div></div>
+      <div class="bar" id="bar"></div>
+      <div class="tag" id="tag">Your clip</div>
+      <div class="ov ov-welcome"><p class="consent" id="consent"></p></div>
+      <div class="ov ov-count"><div class="num" id="num">5</div><div class="numsub">Get ready</div></div>
+      <div class="ov ov-note" id="note"></div>
+      <div class="ov ov-wait"><div class="spin"></div>Getting your clip ready</div>
+      <div class="ov ov-msg"><img class="msglogo" src="/logo.png" alt=""><h2 id="msgH">Connecting to the booth</h2><p id="msgP">One moment.</p><p class="help" id="msgHelp"></p><button class="btn primary" id="errBtn" type="button" hidden></button><div class="link" id="msgLink"></div></div>
+    </div>
+  </div>
+  <aside class="panel">
+    <div>
+      <div class="top">
+        <div class="event" data-brand="event.line1 / event.line2 / event.year"><div class="w">{{event.line1}}</div><div class="w">{{event.line2}}</div><div class="yr">{{event.year}}</div></div>
+        <img class="logo" data-brand="logo.main (brand/logo.png)" src="/logo.png" alt="{{logo.alt}}">
+      </div>
+      <div class="copy">
+        <p class="tagl" id="tagl" data-brand="tagline">{{tagline}}</p>
+        <div class="sbadge" id="sbadge"></div><div class="slab" id="slab"></div>
+        <h1 id="title">Connecting</h1>
+        <p class="body" id="body"></p>
+        <p class="note" id="idle" hidden></p>
+      </div>
+      <div class="qr" id="qr"><canvas id="qrc"></canvas><p class="small" id="qrNote"></p></div>
+      <div class="stlabel">How it works</div>
+      <ol class="steps" id="steps"><li><b>1</b>Tap Start</li><li><b>2</b>Sign your name on the glass</li><li><b>3</b>Scan to get your clip</li></ol>
+    </div>
+    <div>
+      <div class="actions">
+        <button class="btn primary" id="primary" type="button" hidden></button>
+        <button class="btn secondary" id="secondary" type="button" hidden></button>
+      </div>
+      <div class="link" id="link"></div>
+      <div class="foot"><b id="count">0</b>signed</div>
+    </div>
+  </aside>
+</div>
+<div class="attract" id="attract">
+  <div class="slide" id="slide"><img data-brand="logo.main (brand/logo.png)" src="/logo.png" alt="{{logo.alt}}"><h2 data-brand="text.attractTitle">{{text.attractTitle}}</h2><p class="sub" data-brand="text.attractSub">{{text.attractSub}}</p></div>
+  <div class="tap" data-brand="text.attractTap">{{text.attractTap}}</div>
+</div>
+<script src="/qr.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var K=new URLSearchParams(location.search).get('k')||'',q='?k='+encodeURIComponent(K);
+var PREVIEW=/[?&]preview=1\b/.test(location.search);if(PREVIEW)document.body.classList.add('preview');
+var S={},connected=false,prev={st:'',num:'',left:''},lastTap=Date.now(),attractOn=false,replayShown=0,qrFor='';
+
+/* sound cues, tablet speaker only */
+var AC=null;
+function audio(){try{if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C()}if(AC.state==='suspended')AC.resume();return AC}catch(e){return null}}
+function tone(f,d,at,vol){var a=audio();if(!a)return;var t=a.currentTime+(at||0),o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.35,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.05)}
+function cue(k){if(PREVIEW)return;if(k==='count')tone(660,.18);else if(k==='go')tone(1047,.5,0,.45);else if(k==='tick')tone(880,.09,0,.25);else if(k==='end'){tone(784,.18);tone(523,.35,.18)}else if(k==='saved'){tone(659,.15);tone(988,.3,.15)}}
+
+function link(t,bad){['#link','#msgLink'].forEach(function(id){var l=$(id);l.textContent=t||'';l.className='link'+(bad?' bad':'')})}
+function cmd(a){
+  if(PREVIEW)return;
+  audio();
+  fetch('/cmd'+q,{method:'POST',body:JSON.stringify({a:a,t:Date.now()})})
+    .then(function(r){if(r.status===503)link('The booth is not ready. Please ask '+BRAND.text.helpPerson+' for help.',true)})
+    .catch(function(){link('The booth lost its connection. Please ask '+BRAND.text.helpPerson+' for help.',true)});
+}
+function full(){var r=document.documentElement;if(document.fullscreenElement)return;try{var p=r.requestFullscreen&&r.requestFullscreen();if(p&&p.catch)p.catch(function(){})}catch(e){}}
+$('#primary').addEventListener('click',function(){if(this.dataset.a==='start')full();cmd(this.dataset.a)});
+$('#secondary').addEventListener('click',function(){cmd(this.dataset.a)});
+$('#errBtn').addEventListener('click',function(){cmd(this.dataset.a)});
+document.addEventListener('contextmenu',function(e){e.preventDefault()});
+/* any tap: wake from the promo, and tell the laptop someone is here (resets its replay auto-keep) */
+document.addEventListener('pointerdown',function(e){
+  lastTap=Date.now();
+  if(attractOn)return;
+  if(S.st==='review')cmd('touch');
+},true);
+
+/* attract: promo video if the laptop has one (brand/promo.mp4), otherwise a branded slide */
+var promo=null;
+if(!PREVIEW)fetch('/promo'+q,{method:'HEAD'}).then(function(r){
+  if(!r.ok)return;
+  promo=document.createElement('video');promo.src='/promo'+q;promo.muted=true;promo.loop=true;promo.playsInline=true;promo.preload='auto';
+  $('#attract').insertBefore(promo,$('#slide'));$('#slide').style.display='none';
+}).catch(function(){});
+$('#attract').addEventListener('click',function(e){e.stopPropagation();setAttract(false);full();audio()});
+function setAttract(on){
+  attractOn=on;$('#attract').classList.toggle('on',on);
+  if(promo){if(on){var p=promo.play();if(p&&p.catch)p.catch(function(){})}else promo.pause()}
+}
+if(!PREVIEW)setInterval(function(){
+  var lim=(S.attractSec||60)*1000;
+  if(!attractOn&&connected&&S.st==='welcome'&&Date.now()-lastTap>=lim)setAttract(true);
+  if(attractOn&&S.st!=='welcome')setAttract(false);
+},1000);
+
+function shareUrl(code){
+  var b=(S.shareBase||'').trim();
+  if(!b)return location.origin+'/share/'+code;
+  if(/[=\/]$/.test(b))return b+code;
+  return b+(b.indexOf('?')>=0?'&':'?')+'c='+code;
+}
+
+function copyFor(){
+var HELP='ask '+BRAND.text.helpPerson+' for help.';
+return {
+  off:['Connecting to the booth','One moment.','If this stays, please '+HELP],
+  init:['Booth paused','','Please '+HELP],
+  nocam:['Booth paused','','Please '+HELP],
+  welcome:[BRAND.text.welcomeTitle,BRAND.text.welcomeBody],
+  countdown:['Get ready','Hold your marker and face the camera. Start signing when the countdown ends.'],
+  recording:['Recording','Sign your name on the glass. Tap Finish when you are done.'],
+  review:['Happy with it?',''],
+  saving:['Saving your clip','One moment.'],
+  share:['Your clip is ready','Scan with your phone camera to get your clip.'],
+  thanks:[BRAND.text.thanksTitle,BRAND.text.thanksBody],
+  savefail:['That did not save','Your clip is safe on the booth laptop.','Please '+HELP]
+};}
+function btn(el,text,a,cls){el.hidden=!text;el.textContent=text||'';el.dataset.a=a||'';el.className='btn '+(cls||'primary');el.style.visibility=''}
+
+function render(){
+  var st=connected?(S.st||'init'):'off';
+  $('#stage').className='stage '+st+(st==='review'&&!S.replay?' noreplay':'');
+  var app=$('#app');app.dataset.st=st;app.classList.toggle('focus',st==='countdown'||st==='recording');app.classList.toggle('share',st==='share');
+  var COPY=copyFor(),c=COPY[st]||COPY.init;
+  $('#title').textContent=c[0];
+  var body=c[1];
+  if(st==='review')body=S.retakesLeft>0?'Watch your clip. You can retake it once if you like.':'This is your final take. Tap Looks good to get your clip.';
+  $('#body').textContent=body;
+  if(st==='off'||st==='init'||st==='nocam'||st==='savefail'){$('#msgH').textContent=c[0];$('#msgP').textContent=c[1];$('#msgHelp').textContent=c[2]||''}
+  $('#count').textContent=S.count||0;$('#consent').textContent=S.consent||'';
+  $('#num').textContent=S.num||'';$('#leftN').textContent=S.left;
+  $('#left').classList.toggle('low',S.left<=5);
+  $('#bar').style.width=st==='recording'&&S.max?'calc((100% - var(--pw) - 48px) * '+Math.min(1,(S.max-S.left)/S.max).toFixed(3)+')':'0';
+  $('#note').textContent=st==='saving'?'Saving your clip':st==='thanks'?'Thank you!':'';
+  var idle=$('#idle');
+  if(st==='review'&&S.idleLeft<=10){idle.hidden=false;idle.textContent='No tap? Your clip will be kept in '+S.idleLeft+' seconds.'}
+  else if(st==='share'){idle.hidden=false;idle.textContent='This screen closes in '+S.shareLeft+' seconds.'}
+  else idle.hidden=true;
+  var STEP={welcome:1,countdown:2,recording:2,review:2,saving:2,share:3,thanks:4},sn=STEP[st]||1;
+  [].forEach.call($('#steps').children,function(li,i){li.className=(i+1<sn)?'done':(i+1===sn?'on':'')});
+  var sb=$('#sbadge'),sl=$('#slab');
+  if(st==='welcome'){sb.textContent='';sl.textContent=''}
+  else if(st==='thanks'){sb.textContent='\u2713';sb.className='sbadge ok';sl.textContent=''}
+  else{sb.className='sbadge';sb.textContent=st==='share'?'':sn;sl.textContent='Step '+sn+' of 3'}
+  /* buttons */
+  var p=$('#primary'),s=$('#secondary');
+  if(st==='welcome'){btn(p,'Start','start');btn(s,'')}
+  else if(st==='countdown'){btn(p,'Cancel','cancel','secondary');btn(s,'')}
+  else if(st==='recording'){btn(p,'Finish','finish','primary');btn(s,'')}
+  else if(st==='review'){btn(p,'Looks good','keep');btn(s,'Retake','retake','secondary');if(!(S.retakesLeft>0))s.style.visibility='hidden'}  /* slot stays reserved so Looks good never moves */
+  else if(st==='share'){btn(p,'Done','done');btn(s,'')}
+  else{btn(p,'');btn(s,'')}
+  btn($('#errBtn'),st==='savefail'?'Try again':'','retry','primary');
+  /* replay: review, then the same clip on "Your clip" */
+  var v=$('#replay');
+  if((st==='review'||st==='share')&&S.replay&&S.replay!==replayShown){replayShown=S.replay;v.src='/replay'+q+'&id='+S.replay;var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
+  if(st!=='review'&&st!=='share'&&st!=='thanks'&&replayShown){replayShown=0;v.pause();v.removeAttribute('src');v.load()}
+  /* QR */
+  if(st==='share'&&S.code&&qrFor!==S.code){qrFor=S.code;var url=shareUrl(S.code);BoothQR.toCanvas($('#qrc'),url,520);
+    var h=S.linkHours||72,dur=h%24===0?(h/24)+(h===24?' day':' days'):h+' hours';
+    $('#qrNote').textContent='The link works for '+dur+'.'}
+  /* sound cues */
+  if(st==='countdown'&&String(S.num)!==prev.num)cue('count');
+  if(st==='recording'&&prev.st!=='recording')cue('go');
+  if(st==='recording'&&prev.st==='recording'&&String(S.left)!==prev.left&&S.left<=3&&S.left>0)cue('tick');
+  if(prev.st==='recording'&&st!=='recording')cue('end');
+  if(st==='share'&&prev.st!=='share')cue('saved');
+  prev={st:st,num:String(S.num),left:String(S.left)};
+  if(connected&&S.hid)link('The booth needs a moment. Please ask '+BRAND.text.helpPerson+' for help.',true);
+}
+
+/* the control panel saved new branding: reload when the screen is idle (never in the middle of a recording) */
+var reloadWanted=false;
+function maybeReload(){if(reloadWanted&&(!connected||S.st==='welcome'||S.st==='thanks'||S.st==='init'||S.st==='off'))location.reload()}
+if(!PREVIEW){
+var es=new EventSource('/tab-events'+q);
+es.addEventListener('state',function(m){try{S=JSON.parse(m.data)||{}}catch(e){S={}}connected=!!S.st;if(connected&&!S.hid)link('');render();maybeReload()});
+es.addEventListener('brand',function(){reloadWanted=true;maybeReload()});
+es.onerror=function(){connected=false;link('Reconnecting to the booth laptop',true);render()};
+
+/* live preview, about 10 frames a second */
+var img=$('#prev'),fails=0;
+function nextFrame(){img.src='/frame.jpg'+q+'&t='+Date.now()}
+img.onload=function(){fails=0;img.style.visibility='';setTimeout(nextFrame,60)};
+img.onerror=function(){fails++;img.style.visibility='hidden';setTimeout(nextFrame,Math.min(2000,200*fails))};
+nextFrame();
+}
+render();
+
+/* preview mode: the control panel posts {type:'booth-preview', brand, vars, state, attract, logoUrls} and this page redraws */
+if(PREVIEW){
+  window.addEventListener('message',function(e){
+    var d=e.data;if(e.origin!==location.origin||!d||d.type!=='booth-preview')return;
+    var B=d.brand||{};
+    BRAND.text=B.text||BRAND.text;BRAND.event=B.event||BRAND.event;BRAND.tagline=B.tagline;BRAND.logoAlt=(B.logo||{}).alt||BRAND.logoAlt;
+    $('#brand-vars').textContent=d.vars||'';
+    var w=document.querySelectorAll('.event .w');w[0].textContent=BRAND.event.line1;w[1].textContent=BRAND.event.line2;document.querySelector('.event .yr').textContent=BRAND.event.year;
+    $('#tagl').textContent=BRAND.tagline||'';
+    [].forEach.call(document.querySelectorAll('img.logo,img.msglogo,#slide img'),function(i){if(d.logoUrl)i.src=d.logoUrl;i.alt=BRAND.logoAlt});
+    var sl=document.querySelectorAll('#slide h2,#slide .sub,.attract .tap');sl[0].textContent=BRAND.text.attractTitle;sl[1].textContent=BRAND.text.attractSub;sl[2].textContent=BRAND.text.attractTap;
+    S=d.state||{};connected=!!S.st;qrFor='';render();setAttract(!!d.attract);
+  });
+  parent.postMessage({type:'booth-preview-ready'},location.origin);
+}
+})();
+</script>
+</body>
+</html>

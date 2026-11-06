@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8">
+<style>
+html,body{margin:0;height:100%;background:#F4EEE6}
+body{display:flex;align-items:center;justify-content:center}
+.dev{background:#1d1a1c;padding:30px 30px;border-radius:54px;box-shadow:0 30px 60px rgba(43,10,22,.28),inset 0 0 0 3px #3a3538;position:relative}
+.dev:before{content:"";position:absolute;left:50%;top:11px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#3b4a63}
+.dev img{display:block;width:1200px;height:750px;border-radius:14px;object-fit:cover}
+</style>
+<div class="dev"><img id="i"></div>
+<script>document.getElementById('i').src=new URLSearchParams(location.search).get('img')</script>

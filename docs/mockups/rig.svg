@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" font-family="'IBM Plex Mono', ui-monospace, Menlo, monospace">
+  <title>Sign-off booth rig, seen from above</title>
+  <rect width="1200" height="680" fill="#F4EEE6"/>
+  <text x="40" y="46" font-family="'Fraunces', Georgia, serif" font-size="26" font-weight="600" fill="#2B0A16">The rig, seen from above</text>
+  <text x="40" y="70" font-family="'Inter', system-ui, sans-serif" font-size="14" fill="#2B0A16" opacity=".7">Not to scale. The camera films the graduate through a small clear pane held right in front of its lens.</text>
+
+  <!-- floor -->
+  <rect x="40" y="96" width="1120" height="540" rx="10" fill="#ECE3D6" stroke="#2B0A16" stroke-opacity=".15"/>
+
+  <!-- camera field of view: from the lens, through the pane, out to the graduate -->
+  <polygon points="612,380 300,150 300,610" fill="#91153A" opacity=".08"/>
+  <line x1="612" y1="380" x2="300" y2="150" stroke="#91153A" stroke-dasharray="6 5" stroke-width="1.5"/>
+  <line x1="612" y1="380" x2="300" y2="610" stroke="#91153A" stroke-dasharray="6 5" stroke-width="1.5"/>
+
+  <!-- key light, from the side, aimed at the person and off the pane -->
+  <polygon points="212,150 300,150 296,330 262,330" fill="#F3671B" opacity=".14"/>
+  <g transform="rotate(14 236 134)"><rect x="196" y="118" width="80" height="30" rx="3" fill="#2B0A16"/><rect x="202" y="140" width="68" height="8" rx="2" fill="#FFF3DD"/></g>
+  <text x="130" y="108" font-size="13" fill="#2B0A16" font-weight="600">Key light (softbox)</text>
+
+  <!-- graduate -->
+  <ellipse cx="262" cy="380" rx="22" ry="54" fill="#91153A"/>
+  <circle cx="282" cy="380" r="21" fill="#2B0A16"/>
+  <path d="M296 373 l18 7 l-18 7" fill="none" stroke="#F4EEE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="110" y="474" font-size="13" fill="#2B0A16" font-weight="600">Graduate</text>
+  <text x="110" y="491" font-size="12" fill="#2B0A16" opacity=".75">signs with a marker</text>
+
+  <!-- writing on the pane -->
+  <path d="M470 352 c8 -22 15 -22 18 0 s10 24 17 3" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M470 352 c8 -22 15 -22 18 0 s10 24 17 3" fill="none" stroke="#2B0A16" stroke-width="1.2" opacity=".5" stroke-linecap="round"/>
+
+  <!-- pane -->
+  <rect x="474" y="270" width="12" height="220" fill="#CFE3E8" stroke="#2B0A16" stroke-width="2"/>
+  <text x="504" y="524" font-size="13" fill="#2B0A16" font-weight="600">Clear acrylic pane</text>
+  <text x="504" y="541" font-size="12" fill="#2B0A16" opacity=".75">30 x 40 cm, held on 3 arms</text>
+
+  <!-- two combo stands with magic arms -->
+  <g fill="#2B0A16"><circle cx="480" cy="226" r="14"/><circle cx="480" cy="534" r="14"/></g>
+  <g stroke="#2B0A16" stroke-width="4" stroke-linecap="round"><line x1="480" y1="226" x2="480" y2="270"/><line x1="480" y1="534" x2="480" y2="490"/><line x1="480" y1="534" x2="480" y2="470"/></g>
+  <text x="500" y="254" font-size="12" fill="#2B0A16" opacity=".75">Combo stand + sandbags</text>
+
+  <!-- tablet on its own arm beside the top stand, outside the camera view -->
+  <line x1="494" y1="226" x2="530" y2="192" stroke="#2B0A16" stroke-width="4" stroke-linecap="round"/>
+  <rect x="526" y="130" width="12" height="104" rx="3" fill="#2B0A16"/>
+  <rect x="526" y="134" width="5" height="96" rx="2" fill="#F3671B"/>
+  <text x="552" y="150" font-size="13" fill="#2B0A16" font-weight="600">Tablet</text>
+  <text x="552" y="167" font-size="12" fill="#2B0A16" opacity=".75">on an arm beside the stand,</text>
+  <text x="552" y="184" font-size="12" fill="#2B0A16" opacity=".75">outside the camera's view</text>
+
+  <!-- camera on tripod, lens just behind the pane -->
+  <g stroke="#2B0A16" stroke-width="3" stroke-linecap="round"><line x1="668" y1="380" x2="716" y2="330"/><line x1="668" y1="380" x2="716" y2="432"/><line x1="668" y1="380" x2="640" y2="380"/></g>
+  <rect x="630" y="360" width="76" height="40" rx="5" fill="#2B0A16"/>
+  <rect x="610" y="368" width="24" height="24" rx="3" fill="#91153A"/>
+  <circle cx="676" cy="380" r="7" fill="#F4EEE6"/>
+  <text x="600" y="452" font-size="13" fill="#2B0A16" font-weight="600">Camera on tripod</text>
+  <text x="600" y="469" font-size="12" fill="#2B0A16" opacity=".75">lens about 22 cm</text>
+  <text x="600" y="484" font-size="12" fill="#2B0A16" opacity=".75">behind the pane</text>
+
+  <!-- black backdrop behind the camera -->
+  <rect x="772" y="250" width="14" height="260" fill="#14080C"/>
+  <text x="800" y="262" font-size="13" fill="#2B0A16" font-weight="600">Black velvet backdrop</text>
+  <text x="800" y="279" font-size="12" fill="#2B0A16" opacity=".75">no bright reflections in the pane</text>
+
+  <!-- distances -->
+  <g stroke="#2B0A16" stroke-width="1.5" opacity=".7"><line x1="300" y1="596" x2="612" y2="596"/><line x1="300" y1="590" x2="300" y2="602"/><line x1="612" y1="590" x2="612" y2="602"/>
+  <line x1="480" y1="572" x2="612" y2="572"/><line x1="480" y1="566" x2="480" y2="578"/><line x1="612" y1="566" x2="612" y2="578"/></g>
+  <text x="456" y="614" font-size="12" fill="#2B0A16" text-anchor="middle">graduate to lens: about 52 cm</text>
+  <text x="546" y="562" font-size="12" fill="#2B0A16" text-anchor="middle">about 22 cm</text>
+
+  <!-- laptop -->
+  <rect x="930" y="520" width="150" height="14" rx="3" fill="#2B0A16"/>
+  <rect x="946" y="478" width="118" height="42" rx="3" fill="#91153A"/>
+  <rect x="954" y="484" width="102" height="30" rx="2" fill="#F4EEE6" opacity=".9"/>
+  <text x="1005" y="504" font-size="11" text-anchor="middle" fill="#2B0A16">recorder</text>
+  <text x="930" y="560" font-size="13" fill="#2B0A16" font-weight="600">Laptop</text>
+  <text x="930" y="577" font-size="12" fill="#2B0A16" opacity=".75">runs the server and recorder,</text>
+  <text x="930" y="594" font-size="12" fill="#2B0A16" opacity=".75">saves the clips</text>
+
+  <!-- HDMI + capture card -->
+  <path d="M706 392 C820 410 880 450 946 500" fill="none" stroke="#2B0A16" stroke-width="2.5"/>
+  <rect x="868" y="446" width="30" height="16" rx="3" fill="#F3671B" stroke="#2B0A16" stroke-width="1.5" transform="rotate(30 883 454)"/>
+  <text x="796" y="534" font-size="12" fill="#2B0A16" opacity=".8">HDMI cable,</text>
+  <text x="796" y="549" font-size="12" fill="#2B0A16" opacity=".8">then a capture</text>
+  <text x="796" y="564" font-size="12" fill="#2B0A16" opacity=".8">card (USB 3)</text>
+
+  <!-- wifi laptop -> tablet -->
+  <path d="M1070 482 C1150 70 760 60 552 130" fill="none" stroke="#F3671B" stroke-width="2.5" stroke-dasharray="3 7" stroke-linecap="round"/>
+  <text x="820" y="146" font-size="12" fill="#F3671B" font-weight="600">Wi-Fi (the tablet's hotspot)</text>
+</svg>

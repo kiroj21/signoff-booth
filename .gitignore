@@ -1,0 +1,10 @@
+# per-machine and per-event files: never commit these
+.booth-key
+.booth-pending/
+clips/
+booth-log.csv
+*.part
+.DS_Store
+runtime/
+node_modules/
+brand/brand.previous.json

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign-off booth: the program and how to use it</title>
+<!-- Build: Chrome headless --print-to-pdf (needs internet once, for the Google Fonts below). See docs/src/build-pdf.sh -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@page{size:1080px 1528px;margin:0}
+:root{--paper:#F4EEE6;--ink:#2B0A16;--maroon:#91153A;--orange:#F3671B;--line:rgba(43,10,22,.16);--soft:rgba(43,10,22,.72)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:19px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:1080px;height:1528px;padding:72px 80px 64px;position:relative;overflow:hidden;page-break-after:always;break-after:page;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto;break-after:auto}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;margin:0;line-height:1.1;letter-spacing:-.01em}
+h1{font-size:66px;font-weight:700}
+h2{font-size:38px;font-weight:600;margin-bottom:14px}
+h3{font-size:24px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 12px}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--maroon);margin-bottom:14px}
+.rule{height:4px;width:84px;background:var(--orange);margin:22px 0 26px}
+.lede{font-size:24px;line-height:1.4;max-width:820px;color:var(--ink)}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--soft);border-top:1px solid var(--line);padding-top:14px}
+img{display:block;max-width:100%}
+.shot{border-radius:10px}
+.cols{display:flex;gap:36px}
+.cols>*{flex:1}
+ul{margin:0 0 12px;padding-left:22px}
+li{margin-bottom:6px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;display:flex;gap:16px;margin-bottom:14px;align-items:flex-start}
+.steps li:before{content:counter(s);flex:none;width:36px;height:36px;border-radius:50%;background:var(--maroon);color:var(--paper);font-family:'IBM Plex Mono',monospace;font-weight:500;display:flex;align-items:center;justify-content:center;font-size:17px;margin-top:2px}
+.card{background:#fff8ef;border:1px solid var(--line);border-radius:12px;padding:20px 24px}
+.card h3{color:var(--maroon)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.cap{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--soft);margin-top:8px;text-transform:uppercase;letter-spacing:.06em}
+.warn{border-left:5px solid var(--orange);padding:4px 0 4px 18px;margin-bottom:18px}
+.warn b{font-family:'Fraunces',serif;font-size:22px;font-weight:600;display:block;margin-bottom:2px}
+code{font-family:'IBM Plex Mono',monospace;font-size:.88em;background:rgba(43,10,22,.07);padding:1px 6px;border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:17px}
+td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<section class="page">
+  <div class="kicker">Open source · MIT licence</div>
+  <h1>Sign-off booth: the program and how to use it</h1>
+  <div class="rule"></div>
+  <p class="lede">A graduate signs their name on a clear acrylic pane. A camera behind the pane films them. A tablet tells them what to do. At the end they scan a QR code and take the clip home on their phone.</p>
+  <p style="margin-bottom:26px">It runs on one laptop, with Node.js and Chrome. There is no account to make and no service you have to use. A control panel on the laptop lets you set your own logo, title, colours and wording, with a live preview.</p>
+  <img class="shot" src="../mockups/framed/01-welcome.png" alt="Welcome screen on the tablet" style="margin:0 -30px 26px">
+  <div class="cols">
+    <div>
+      <h3>What the graduate does</h3>
+      <ol class="steps">
+        <li><div><b>Tap Start.</b><br>The tablet shows your consent line first.</div></li>
+        <li><div><b>Sign on the glass.</b><br>A countdown, then up to 20 seconds of recording.</div></li>
+        <li><div><b>Scan the QR code.</b><br>The clip downloads to their phone.</div></li>
+      </ol>
+    </div>
+    <div>
+      <h3>What you get</h3>
+      <ul>
+        <li>A clean master of every clip.</li>
+        <li>A copy with your logo added, for sharing.</li>
+        <li>A control panel to make it look like yours.</li>
+        <li>A check page that warns you before the event.</li>
+        <li>A plain log of file names and times. No personal details.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Sign-off booth</span><span>1 / 5</span></div>
+</section>
+
+<!-- PAGE 2 -->
+<section class="page">
+  <div class="kicker">The rig</div>
+  <h2>What you need and how it fits together</h2>
+  <img src="../mockups/rig.png" alt="The rig seen from above" style="margin:0 0 22px;border-radius:10px">
+  <div class="cols">
+    <div>
+      <h3>The idea</h3>
+      <p>A small <b>30 x 40 cm acrylic pane</b> sits about 22 cm from the lens, on arms from two light stands. The graduate stands about 52 cm from the lens and writes on it. The camera sees the writing from behind, so the program flips the clip to read correctly.</p>
+      <p>The tablet is on its own arm, outside the camera's view. A soft light aims at the person, and a black cloth behind the camera stops reflections in the pane. The full kit is on the next page.</p>
+    </div>
+    <div>
+      <h3>Setup in five steps</h3>
+      <ol class="steps" style="font-size:18px">
+        <li><div>Install Node.js and Chrome.</div></li>
+        <li><div>Double-click <code>Start Booth.command</code> (Mac) or run the Linux script.</div></li>
+        <li><div>Fix anything red on the check page.</div></li>
+        <li><div>Open <code>/control</code> and set your logo, colours and wording.</div></li>
+        <li><div>In the recorder, choose the camera and where clips are saved. Scan its QR with the tablet. Details: <code>QUICKSTART.md</code>.</div></li>
+      </ol>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:6px;padding:0 60px">
+    <div><img class="shot" src="../mockups/framed/02-countdown.png" alt="Countdown screen"><div class="cap">Countdown</div></div>
+    <div><img class="shot" src="../mockups/framed/03-recording.png" alt="Recording screen"><div class="cap">Recording</div></div>
+  </div>
+  <div class="foot"><span>Sign-off booth</span><span>2 / 5</span></div>
+</section>
+
+<!-- PAGE 3: equipment -->
+<section class="page">
+  <div class="kicker">Equipment</div>
+  <h2>The kit used to build it</h2>
+  <p style="font-size:17px">Nothing is required by name. The program needs a camera the browser can see, a tablet with a browser, and a laptop. <b>Swap</b> = easy substitute. <b>Optional</b> = can be left out. Full table: <code>EQUIPMENT.md</code>.</p>
+  <table style="font-size:15.5px;line-height:1.4">
+    <tr><th style="width:20%">Part</th><th style="width:36%">Used here</th><th>Notes</th></tr>
+    <tr><td>Camera</td><td>Sony ZV-E10, 16-50 mm kit lens at 16 mm, movie mode</td><td><b>Swap:</b> any camera with clean HDMI out, or a good webcam</td></tr>
+    <tr><td>Camera power</td><td>KingMa NP-FW50 dummy battery on a 20 W USB-C charger</td><td><b>Optional</b> for short sessions</td></tr>
+    <tr><td>Capture card</td><td>UGREEN 4K60 USB-C HDMI card (USB 3.0, 1080p)</td><td><b>Swap:</b> Elgato Cam Link 4K. Avoid USB 2.0 dongles</td></tr>
+    <tr><td>HDMI cable</td><td>Vention micro-HDMI to HDMI, 3 m</td><td>Tape it down so a pull misses the camera port</td></tr>
+    <tr><td>Tripod</td><td>Manfrotto 190XPROB, 496RC2 ball head</td><td>Lens at face height</td></tr>
+    <tr><td>Pane</td><td>Clear acrylic, 30 x 40 cm, 4 mm, polished edges</td><td>6 mm is stiffer; foam pads on the grips</td></tr>
+    <tr><td>Stands and arms</td><td>2 x Meking MF-3400F combo stands, 4 x MB-42 magic arms, about 8 super clamps, 8 x 5 kg sandbags</td><td>Three arms hold the pane, one holds the tablet</td></tr>
+    <tr><td>Tablet</td><td>Samsung Galaxy Tab S8 Ultra, SmallRig 2930 mount</td><td><b>Swap:</b> any tablet with a browser</td></tr>
+    <tr><td>Laptop</td><td>MacBook Pro 13 in (2017), four USB-C ports, Chrome and Node.js 18+</td><td><b>Swap:</b> Linux laptop. <b>Optional:</b> USB-C hub</td></tr>
+    <tr><td>Wi-Fi</td><td>The tablet's own hotspot</td><td>Laptop and tablet on the same network</td></tr>
+    <tr><td>Key light</td><td>amaran P60c with softbox and grid, mains supply</td><td>Aim at the person, not the pane. <b>Optional:</b> white fill board</td></tr>
+    <tr><td>Backdrop</td><td>Black velvet cloth behind the camera, plus a card hood on the lens</td><td>Did more than any other fix against reflections</td></tr>
+    <tr><td>Backup copy</td><td>32 GB exFAT USB-C stick</td><td><b>Optional.</b> Plan B video: the camera's own USB-C, 720p</td></tr>
+    <tr><td>Cleaning</td><td>Window or dry-erase markers, ammonia-free cleaner, microfibre cloths, squeegee</td><td>Ammonia clouds acrylic. Test markers first</td></tr>
+    <tr><td>Odds and ends</td><td>Extension lead, gaffer tape, floor tape for the standing spot</td><td></td></tr>
+  </table>
+  <div class="warn" style="margin-top:20px"><b>Lessons</b>A pane close to the lens is easier to light and frame than a big one far away. Reflections are the main enemy: black behind the camera, light on the person, hood on the lens. Check the capture card really is USB 3.0. Do two test clips with real markers before the event.</div>
+  <div class="foot"><span>Sign-off booth</span><span>3 / 5</span></div>
+</section>
+
+<!-- PAGE 4 -->
+<section class="page">
+  <div class="kicker">On the day</div>
+  <h2>Before, during, after</h2>
+  <div class="cols" style="margin-bottom:20px">
+    <div class="card">
+      <h3>Before people arrive</h3>
+      <ul>
+        <li>Start the booth. Fix the red items on the check page.</li>
+        <li>Make two test clips and watch them back.</li>
+        <li>Check the writing reads correctly and the face is lit.</li>
+        <li>Wipe the glass. Put the markers out.</li>
+        <li>Laptop and camera on mains power.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>While it runs</h3>
+      <ul>
+        <li>Keep the terminal window open. Closing it stops the booth.</li>
+        <li>Have someone wipe the glass between people.</li>
+        <li>Glance at the recorder for warnings.</li>
+        <li>Afterwards copy the clips folder somewhere safe, then delete what you do not need.</li>
+      </ul>
+    </div>
+  </div>
+  <h2 style="margin-top:6px">Three things that went wrong</h2>
+  <div class="warn"><b>1. Camera left in photo mode</b>The picture came out 3:2 with black bars. Put the camera in video mode and check the recorder shows a 16:9 size, such as 1920 x 1080.</div>
+  <div class="warn"><b>2. Camera at 25 fps, recorder asking for 30</b>The recorder asks for 30 fps and cannot force it. Read the Performance card, and set the camera to 30 fps so the two agree.</div>
+  <div class="warn"><b>3. Upload quota hit</b>rclone's built-in Google client is shared by everyone who uses rclone, so Google's limits run out. Make your own Google OAuth client and use it in <code>rclone config</code>.</div>
+  <div class="grid2" style="margin-top:6px;align-items:end">
+    <div><img class="shot" src="../mockups/framed/04-share-qr.png" alt="Share screen with QR code"><div class="cap">Clip ready: scan to download</div></div>
+    <div><img class="shot" src="../mockups/framed/05-thank-you.png" alt="Thank you screen"><div class="cap">Thank you, then back to the start</div></div>
+  </div>
+  <div class="foot"><span>Sign-off booth</span><span>4 / 5</span></div>
+</section>
+
+<!-- PAGE 5 -->
+<section class="page">
+  <div class="kicker">Make it yours · and be careful with people's data</div>
+  <h2>The control panel</h2>
+  <p>Open <code>http://localhost:8080/control</code> on the booth laptop. Change the logo, event title, colours, font, wording, consent text, countdown and recording length, and watch a live preview of the tablet. Nothing is saved until you press Save. Reset puts the standard look back.</p>
+  <img class="shot" src="../mockups/control-panel.png" alt="The control panel with a live tablet preview" style="width:900px;margin:0 auto 14px;border:1px solid var(--line)">
+  <p style="font-size:16.5px;margin-bottom:18px">It only opens on the laptop itself. It saves to <code>brand/brand.json</code>, PNG logos in <code>brand/</code> and <code>booth-settings.json</code>, so you can still edit by hand. Add <code>?marks=1</code> to a page address to outline every spot that comes from the settings.</p>
+  <h2 style="font-size:32px">Consent and privacy</h2>
+  <div class="cols">
+    <div>
+      <p>The booth films faces and hands out a link. That is personal data in most places, and <b>you are the organiser</b>. Write your own consent wording: who films, what the clip is for, how long you keep it, who to tell if someone changes their mind.</p>
+      <p>Check the law where you are, for example the PDPA in Singapore or GDPR in the EU and UK. Take extra care with minors.</p>
+    </div>
+    <div>
+      <p>The program asks for no names, emails or phone numbers. Links use a random code. Clips stay in the folder you choose, plus Google Drive if you sync that folder. Nothing is sent to the author.</p>
+      <p>Decide when to delete clips, and be able to remove one on request. This is plain guidance, not legal advice.</p>
+    </div>
+  </div>
+  <div class="foot"><span>MIT licence · see README.md and THIRD-PARTY.md</span><span>5 / 5</span></div>
+</section>
+
+</body>
+</html>

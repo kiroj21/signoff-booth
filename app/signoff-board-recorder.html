@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="only light"><style>:root{color-scheme:only light}</style>
+<title>Booth Recorder</title>
+<!-- Sign-Off Booth recorder. Runs on the laptop at http://localhost:8080/recorder.
+     Holds the camera, records, saves through booth-server.js, and drives the tablet screen. Staff only. -->
+<style>
+:root{--brand-dark:#162B3D;--brand:#24435E;--accent:#E8590C;--brand-tint:#E4ECF2;--gold-dark:#876712;--paper:#fff;--page:#F5F6F7;--text:#161A1D;--muted:#505A61;--line:rgba(22,26,29,.12);--success:#1F7A43;--error:#B3261E;
+  --serif:Georgia,'Times New Roman',serif;--sans:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+.app{min-height:100%;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding:20px}
+.stage{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.stage canvas,.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.stage video{display:none}.stage.review video,.stage.share video{display:block}
+.pill{position:absolute;top:12px;left:12px;padding:6px 14px;border-radius:999px;background:rgba(26,20,22,.8);color:#fff;font-weight:700}
+.pill.rec{background:var(--error)}
+.big{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#fff;font-family:var(--serif);font-weight:400;font-size:160px;background:rgba(26,20,22,.45)}
+.stage.countdown .big{display:flex}
+.msg{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);text-align:center;padding:24px}
+.stage.nocam .msg,.stage.init .msg{display:flex}
+.msg h2{font-family:var(--serif);font-size:28px;margin-bottom:6px}
+.warn{display:none;margin-top:12px;padding:12px 14px;border-radius:8px;background:#FBE9E7;color:var(--error);font-weight:700}
+.warn.on{display:block}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h1{font-family:var(--serif);font-weight:400;color:var(--brand);font-size:26px;line-height:1.15}
+h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.state{font-size:22px;font-weight:700;margin-top:6px}
+.sub{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{min-height:44px;padding:0 14px;border-radius:8px;border:2px solid var(--brand);color:var(--brand);background:var(--paper);font-weight:700;cursor:pointer}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+.ok{color:var(--success);font-weight:700}.bad{color:var(--error);font-weight:700}
+.connect{display:flex;gap:14px;align-items:center}
+.connect canvas{width:132px;height:132px;flex:none;border:1px solid var(--line);border-radius:8px}
+.connect code{font-size:13px;word-break:break-all}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.grid label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.grid input[type=number],.grid input[type=text],.grid select{width:100%;min-height:38px;border:1px solid rgba(26,20,22,.3);border-radius:4px;padding:0 8px;background:#fff}
+.wide{grid-column:1/-1}
+.sec{grid-column:1/-1;margin-top:10px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.sec.first{border-top:0;margin-top:0;padding-top:0}
+.grid .row select{flex:1;width:auto}
+.stinfo p{margin:2px 0;word-break:break-all}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.check input{width:18px;height:18px;accent-color:var(--brand)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.list{max-height:220px;overflow:auto}
+details summary{cursor:pointer;font-weight:700}
+/* status strip: always visible, one glance for staff */
+.strip{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:0 4px 14px rgba(65,9,15,.08);padding:12px 20px}
+.strip .main{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.strip .word{font-size:30px;font-weight:700;line-height:1.1;color:var(--brand);flex:0 0 340px;white-space:nowrap}
+.strip .word small{display:block;font-size:18px;font-weight:400;color:var(--muted);margin-top:2px;min-height:26px}
+.strip .chips{display:flex;gap:10px;flex-wrap:wrap;flex:1}
+.chk{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:var(--page);min-width:150px}
+.chk i{width:18px;height:18px;border-radius:50%;background:var(--muted);flex:none}
+.chk span{display:block;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1.2}
+.chk b{display:block;font-size:20px;line-height:1.2}
+.chk.ok{border-color:var(--success);background:#EAF5EE}.chk.ok i{background:var(--success)}
+.chk.warn{border-color:var(--gold-dark);background:#FFF6DD}.chk.warn i{background:var(--gold-dark)}
+.chk.bad{border-color:var(--error);background:#FBE9E7}.chk.bad i{background:var(--error)}
+.strip .signed{font-size:18px;color:var(--muted);text-align:center;line-height:1.1}
+.strip .signed b{display:block;font-family:var(--serif);font-weight:400;font-size:40px;color:var(--brand)}
+.stripmsg{display:flex;align-items:center;gap:14px;margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--error);color:#fff;font-size:20px;font-weight:700}
+.stripmsg[hidden]{display:none}
+.stripmsg .btn{border-color:#fff;background:#fff;color:var(--error);margin-left:auto}
+@media (max-width:1100px){.app{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="strip" id="strip">
+  <div class="main">
+    <div class="word"><span id="sWord">Starting</span><small id="sSub"></small></div>
+    <div class="chips">
+      <div class="chk" id="cTab"><i></i><div><span>Tablet</span><b>...</b></div></div>
+      <div class="chk" id="cCam"><i></i><div><span>Camera</span><b>...</b></div></div>
+      <div class="chk" id="cSave"><i></i><div><span>Saving to</span><b>...</b></div></div>
+      <div class="chk" id="cBak"><i></i><div><span>Backup</span><b>...</b></div></div>
+      <div class="chk" id="cSync" style="display:none"><i></i><div><span>Drive upload</span><b>...</b></div></div>
+    </div>
+    <div class="signed"><b id="sCount">0</b>signed</div>
+  </div>
+  <div class="stripmsg" id="sMsg" hidden><span id="sMsgT"></span><button class="btn" id="sMsgB" type="button">Show me</button></div>
+</header>
+<div class="app">
+  <div>
+    <div class="stage init" id="stage">
+      <canvas id="view" width="1280" height="720"></canvas>
+      <video id="replay" playsinline loop muted></video>
+      <div class="pill" id="pill">Starting</div>
+      <div class="big" id="big">5</div>
+      <div class="msg"><h2 id="msgH">Starting the camera</h2><p id="msgP" class="sub">Allow camera access when Chrome asks.</p><button class="btn" id="msgBtn" style="margin-top:14px" hidden>Try again</button></div>
+    </div>
+    <div class="warn" id="stWarn"></div>
+    <div class="warn" id="warnHidden">Keep this window visible and in front. Chrome pauses hidden windows, and the clip would come out empty.</div>
+    <div class="card" style="margin-top:16px">
+      <h3>Saved clips</h3>
+      <p class="sub" id="folder"></p>
+      <div class="list"><table><thead><tr><th>File</th><th>Folder</th><th>Size</th><th>Time</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div id="unsaved"></div>
+    </div>
+    <div class="card" id="jobCard" hidden>
+      <h3>Branded copies being made</h3>
+      <div class="connect"><video id="jobVideo" muted playsinline style="width:160px;height:90px;background:#000;border-radius:6px;flex:none"></video><div><p id="jobTxt"></p><div id="jobFails"></div></div></div>
+    </div>
+  </div>
+  <aside>
+    <div class="card">
+      <h1 data-brand="organisation (shown in page titles)">Booth recorder</h1>
+      <p class="sub">Staff screen. Graduates use the tablet.</p>
+      <div class="state" id="stateTxt">Starting</div>
+      <p class="sub" id="detail"></p>
+      <p style="margin-top:8px">Tablet: <span id="tabs" class="bad">not connected</span> &nbsp; Signed: <b id="count">0</b></p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="bMain" type="button">Start</button>
+        <button class="btn" id="bRetake" type="button">Retake</button>
+        <button class="btn" id="bCancel" type="button">Cancel</button>
+      </div>
+      <p class="sub" style="margin-top:8px">Keyboard: Space = main button, R = retake, Esc = cancel the countdown.</p>
+    </div>
+    <div class="card">
+      <h3>Performance</h3>
+      <p id="perfLive" class="sub">Waiting for the camera.</p>
+      <p id="perfLast" style="margin-top:6px">Last take: none yet.</p>
+      <p id="perfRun" style="margin-top:6px"></p>
+      <p id="perfVerdict" style="margin-top:6px;font-weight:700"></p>
+      <div class="row" style="margin-top:8px"><button class="btn" id="perfReset" type="button">Reset performance stats</button></div>
+    </div>
+    <div class="card">
+      <h3>Connect the tablet</h3>
+      <div class="connect"><canvas id="qrTab"></canvas><div><p>On the tablet, scan this with the camera or type the address into Chrome:</p><code id="tabUrl"></code><p class="sub" style="margin-top:6px"><select id="ifSel"></select></p></div></div>
+      <p class="sub" style="margin-top:10px"><a href="/control">Change the logo, colours, wording and consent text</a> (control panel)</p>
+    </div>
+    <div class="card">
+      <details id="setBox">
+        <summary>Settings</summary>
+        <div class="grid" style="margin-top:12px">
+          <div class="sec first">Camera</div>
+          <div class="wide"><label for="sCam">Camera (switches straight away when the booth is at the welcome screen)</label><div class="row"><select id="sCam"></select><button class="btn" id="camRefresh" type="button" style="min-height:38px">Refresh list</button></div><p class="sub" id="camNote"></p></div>
+          <div class="sec">Booth screens</div>
+          <div><label for="sCd">Countdown (s)</label><input id="sCd" type="number" min="0" max="10"></div>
+          <div><label for="sMax">Longest clip (s)</label><input id="sMax" type="number" min="5" max="60"></div>
+          <div><label for="sRetakes">Retakes allowed</label><input id="sRetakes" type="number" min="0" max="5"></div>
+          <div><label for="sIdle">Unanswered replay kept after (s)</label><input id="sIdle" type="number" min="10" max="120"></div>
+          <div><label for="sShare">"Your clip" screen (s)</label><input id="sShare" type="number" min="10" max="120"></div>
+          <div><label for="sThanks">Thank-you screen (s)</label><input id="sThanks" type="number" min="2" max="15"></div>
+          <div><label for="sAttract">Promo starts after idle (s)</label><input id="sAttract" type="number" min="15" max="600"></div>
+          <div class="wide"><label class="check"><input id="sFP" type="checkbox"> Mirror the live preview</label><label class="check"><input id="sFS" type="checkbox"> Save the clip mirrored (writing reads correctly)</label></div>
+          <div class="sec" data-brand="logo.* (files in the brand folder)">Branded copy for the graduate</div>
+          <div class="wide"><label class="check"><input id="sBr" type="checkbox"> Make the branded copy for the graduate</label></div>
+          <div class="wide"><label for="sBrMode">Branded copy is made</label><select id="sBrMode"><option value="after">After Keep, in the background (lighter, for older laptops)</option><option value="live">While recording (needs a faster laptop)</option></select></div>
+          <div class="wide"><label for="sLogo">Logo version</label><select id="sLogo"><option value="auto">Automatic (picks the version that reads best on the footage)</option><option value="border">White outline (works on any backdrop)</option><option value="light">White lettering (dark backdrops)</option><option value="colour">Colour (light backdrops)</option></select></div>
+          <div><label for="sLogoPos">Logo corner</label><select id="sLogoPos"><option value="br">Bottom right</option><option value="bl">Bottom left</option><option value="tr">Top right</option><option value="tl">Top left</option></select></div>
+          <div><label for="sLogoSize">Logo width (% of the frame, 8 to 20)</label><input id="sLogoSize" type="number" min="8" max="20"></div>
+          <div class="wide"><label for="logoBg">Preview the logo on</label><select id="logoBg"><option value="cam">The camera</option><option value="dark">Dark backdrop</option><option value="light">Light backdrop</option><option value="brand">Brand colour backdrop</option><option value="busy">Busy backdrop</option></select>
+            <canvas id="logoPrev" width="640" height="360" style="width:100%;border-radius:8px;margin-top:6px;background:#000"></canvas><p class="sub" id="logoPick"></p></div>
+          <div class="sec" data-brand="consent (default wording: brand/brand.json)">Download link and consent</div>
+          <div><label for="sHours">Download link works for (hours)</label><input id="sHours" type="number" min="1" max="720"></div>
+          <div class="wide"><label for="sBase">Share link start (empty = the page on this laptop)</label><input id="sBase" type="text" placeholder="e.g. https://your-share-page.example.com/clip?k="></div>
+          <div class="wide"><label for="sCon">Consent line on the tablet (draft wording, confirm before the event)</label><input id="sCon" type="text" maxlength="400"></div>
+        </div>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="sSave" type="button">Save settings</button></div>
+        <div class="grid" style="margin-top:18px">
+          <div class="sec">Where clips are saved</div>
+          <div class="wide" id="stAccRow"><label for="stAcc">Google account (Drive for desktop)</label><select id="stAcc"></select></div>
+          <div class="wide"><label for="stLoc">Save in</label><select id="stLoc"></select></div>
+          <div class="wide" id="stFolderRow"><label for="stFolder">Folder name (made inside it)</label><input id="stFolder" type="text" maxlength="80"></div>
+          <div class="wide" id="stCustomRow" hidden><label for="stCustom">Full folder path</label><input id="stCustom" type="text" placeholder="/Users/name/Movies/Sign-Off Booth"></div>
+          <div class="wide"><label for="stBackup">Backup copy</label><select id="stBackup"><option value="usb">USB stick</option><option value="folder">Another folder</option><option value="none">No backup copy</option></select></div>
+          <div class="wide" id="stUsbRow"><label for="stUsb">USB stick</label><select id="stUsb"></select></div>
+          <div class="wide" id="stBfRow" hidden><label for="stBf">Backup folder (full path)</label><input id="stBf" type="text" placeholder="/Volumes/My Stick/Sign-Off Booth"></div>
+          <div><label for="stPort">Booth port (used next start)</label><input id="stPort" type="number" min="1024" max="65535"></div>
+          <div class="wide stinfo" id="stInfo"></div>
+          <div class="wide row"><button class="btn primary" id="stApply" type="button">Apply save location</button><button class="btn" id="stRefresh" type="button">Look again</button></div>
+          <div class="wide"><p id="stMsg"></p></div>
+        </div>
+      </details>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var DEF={deviceId:'',countdown:5,maxLen:20,retakes:1,idleSec:30,shareSec:30,thanksSec:4,attractSec:60,flipPreview:true,flipSaved:true,branded:true,brandMode:'after',logoMode:'auto',logoPos:'br',logoSize:12,shareBase:BRAND.shareBase||'',linkHours:72,
+  /* the consent wording comes from brand/brand.json (consent) until you save your own in Settings */
+  consent:BRAND.consent};
+var set=Object.assign({},DEF);
+try{Object.assign(set,JSON.parse(localStorage.getItem('boothRecorderSettings')||'{}'))}catch(e){}
+function saveSet(){try{localStorage.setItem('boothRecorderSettings',JSON.stringify(set))}catch(e){}}
+/* the booth-settings.json file (through the server) is the home of these settings, so they travel with the booth folder;
+   localStorage stays as a fallback. The camera choice stays in the browser only. */
+var FILE_KEYS=['countdown','maxLen','retakes','idleSec','shareSec','thanksSec','attractSec','flipPreview','flipSaved','branded','brandMode','logoMode','logoPos','logoSize','shareBase','linkHours','consent'];
+function saveFile(){
+  var o={};FILE_KEYS.forEach(function(k){o[k]=set[k]});
+  return fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})
+    .then(function(r){if(!r.ok)throw new Error('http '+r.status)});
+}
+var hadLocal=false;try{hadLocal=!!localStorage.getItem('boothRecorderSettings')}catch(e){}
+function loadFile(){
+  return fetch('/config').then(function(r){return r.json()}).then(function(j){
+    /* file wins once it has been saved by a recorder, or when this browser has nothing of its own.
+       A browser with its own settings and a file still holding starting values pushes its settings into the file instead. */
+    if(j&&j.exists&&j.recorder&&(j.saved||!hadLocal))FILE_KEYS.forEach(function(k){if(j.recorder[k]!==undefined)set[k]=j.recorder[k]});
+    else if(hadLocal&&!(j&&j.saved))saveFile().catch(function(){});
+    saveSet();
+  }).catch(function(){});
+}
+
+var S={st:'init',num:0,t0:0,retakesUsed:0,replayId:0,code:'',n:0,count:0,until:0,lastTouch:0,unsaved:[],msgH:'',msgP:'',tablets:0};
+var video=null,stream=null,view=$('#view'),vx=view.getContext('2d');
+var rc=document.createElement('canvas'),rx=rc.getContext('2d');      // clean master
+var bc=document.createElement('canvas'),bx=bc.getContext('2d');      // branded copy
+var pc=document.createElement('canvas'),px=pc.getContext('2d');      // small preview for the tablet replay
+pc.width=960;pc.height=540;
+var logo=new Image();logo.src='/logo.png';
+var recs=[],cdTimer=null,info=null;
+
+/* ---------- camera ---------- */
+function size(){
+  var vw=video&&video.videoWidth,vh=video&&video.videoHeight,w=1280;
+  if(vw&&vh){var sw=vw,sh=vw*9/16;if(sh>vh){sh=vh;sw=vh*16/9}w=Math.min(1920,Math.round(sw/2)*2)}
+  var h=Math.round(w*9/16/2)*2;
+  [rc,bc].forEach(function(c){if(c.width!==w||c.height!==h){c.width=w;c.height=h}});
+  /* the on-screen preview is drawn at half size: less work per frame, the saved clip stays full size */
+  var pw=Math.round(w/4)*2,ph=Math.round(h/4)*2;if(view.width!==pw||view.height!==ph){view.width=pw;view.height=ph}
+}
+function drawCam(ctx,flip){
+  var vw=video.videoWidth,vh=video.videoHeight,w=ctx.canvas.width,h=ctx.canvas.height;if(!vw||!vh)return;
+  var sw=vw,sh=vw*9/16;if(sh>vh){sh=vh;sw=vh*16/9}
+  ctx.save();if(flip){ctx.translate(w,0);ctx.scale(-1,1)}
+  ctx.drawImage(video,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);ctx.restore();
+}
+/* branded copy: your transparent logo from the brand folder (logo-border.png, logo-light.png, logo-colour.png), bottom-right by default. Three versions:
+     border = full colour with a white outline (reads on any backdrop), light = white lettering (dark backdrops),
+     colour = full colour with dark lettering (light backdrops).
+   In Automatic mode the area behind the logo is read a few times a second. Dark and plain gives light, light and plain gives colour,
+   busy or in between gives border. The reading is smoothed, the version changes at most every 1.5 s, and each clip starts fresh. */
+var LOGOS={};['border','light','colour'].forEach(function(k){var i=new Image();i.src='/brand-logo/'+k+'.png';LOGOS[k]=i});
+var LOGO_LABEL={border:'white outline',light:'white lettering',colour:'colour'};
+var sc=document.createElement('canvas');sc.width=24;sc.height=14;var scx=sc.getContext('2d',{willReadFrequently:true});
+function imgOk(i){return !!(i&&i.complete&&i.naturalWidth>0)}
+function wantLogo(L,sd,cur){
+  if(sd>=(cur==='border'?.12:.17))return 'border';
+  var lo=cur==='light'?.46:.38,hi=cur==='colour'?.54:.64;
+  return L<lo?'light':L>hi?'colour':'border';
+}
+function readBackdrop(ctx,box,lg){
+  var now=performance.now();if(lg.init&&now-lg.ts<180)return;lg.ts=now;
+  try{
+    scx.drawImage(ctx.canvas,box.x,box.y,box.w,box.h,0,0,24,14);
+    var d=scx.getImageData(0,0,24,14).data,n=d.length/4,sum=0,sq=0;
+    for(var i=0;i<d.length;i+=4){var l=(.2126*d[i]+.7152*d[i+1]+.0722*d[i+2])/255;sum+=l;sq+=l*l}
+    var m=sum/n,sd=Math.sqrt(Math.max(0,sq/n-m*m));
+    if(lg.init){lg.L=lg.L*.7+m*.3;lg.sd=lg.sd*.7+sd*.3}else{lg.L=m;lg.sd=sd}
+    var want=wantLogo(lg.L,lg.sd,lg.key);
+    if(!lg.init){lg.key=want;lg.at=now;lg.init=true}
+    else if(want!==lg.key&&now-lg.at>1500){lg.key=want;lg.at=now}
+  }catch(e){lg.init=true}
+}
+/* old look (kept only as a fallback if the transparent versions did not load): the vertical logo on a light plate */
+function drawBrandPlate(ctx){
+  if(!logo.complete||!logo.naturalWidth)return;
+  var W=ctx.canvas.width,H=ctx.canvas.height,lw=Math.round(W*.073),lh=Math.round(lw*logo.naturalHeight/logo.naturalWidth);
+  var pad=Math.round(H*.022),m=Math.round(H*.035),bw=lw+pad*2,bh=lh+pad*2,x=W-m-bw,y=H-m-bh,r=Math.round(H*.02);
+  ctx.save();ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+bw,y,x+bw,y+bh,r);ctx.arcTo(x+bw,y+bh,x,y+bh,r);ctx.arcTo(x,y+bh,x,y,r);ctx.arcTo(x,y,x+bw,y,r);ctx.closePath();ctx.fill();
+  ctx.drawImage(logo,x+pad,y+pad,lw,lh);ctx.restore();
+}
+function drawBrand(ctx,opt){
+  var o=opt||set,cv=ctx.canvas,lg=cv._lg||(cv._lg={init:false,key:'border',L:.5,sd:0,ts:0,at:0,drawn:''});
+  var mode=o.logoMode||'auto',ref=LOGOS.border;
+  if(!imgOk(ref)&&!imgOk(LOGOS[mode]))return drawBrandPlate(ctx);
+  if(!imgOk(ref))ref=LOGOS[mode];
+  var W=cv.width,H=cv.height,lw=Math.round(W*(+o.logoSize||12)/100),m=Math.round(H*.04),pos=o.logoPos||'br';
+  var bh=Math.round(lw*ref.naturalHeight/ref.naturalWidth);
+  var box={x:pos.charAt(1)==='l'?m:W-m-lw,y:pos.charAt(0)==='t'?m:H-m-bh,w:lw,h:bh};
+  var key=mode;if(mode==='auto'){readBackdrop(ctx,box,lg);key=lg.key}
+  var img=imgOk(LOGOS[key])?LOGOS[key]:ref,h=Math.round(lw*img.naturalHeight/img.naturalWidth);
+  var y=pos.charAt(0)==='t'?box.y:box.y+bh-h;
+  ctx.save();ctx.shadowColor=key==='light'?'rgba(0,0,0,.55)':'rgba(0,0,0,.38)';ctx.shadowBlur=Math.round(H*.014);ctx.shadowOffsetY=Math.round(H*.004);
+  ctx.drawImage(img,box.x,y,lw,h);ctx.restore();lg.drawn=key;
+}
+function resetLogo(){[bc,pc,jc].forEach(function(c){c._lg=null})}
+function liveBrand(){return set.branded&&set.brandMode==='live'}
+/* one recording frame: clean master, plus the branded copy (live mode) and the small tablet preview */
+function drawRecFrame(){
+  drawCam(rx,set.flipSaved);
+  if(liveBrand()){bx.drawImage(rc,0,0);drawBrand(bx);px.drawImage(bc,0,0,960,540)}
+  else{px.drawImage(rc,0,0,960,540);if(set.branded)drawBrand(px)}
+}
+function loop(){
+  function step(now,meta){
+    if(video&&video.readyState>=2){
+      drawCam(vx,set.flipPreview);
+      if(S.st==='recording'){drawRecFrame();perf.frame(meta)}
+      perf.camFrame();
+    }
+    next();
+  }
+  function next(){if(video&&video.requestVideoFrameCallback&&!document.hidden)video.requestVideoFrameCallback(step);else requestAnimationFrame(step)}
+  next();
+}
+async function startCamera(){
+  S.st='init';S.msgH='Starting the camera';S.msgP='Allow camera access when Chrome asks.';render();
+  try{
+    if(stream)stream.getTracks().forEach(function(t){t.stop()});
+    var c={video:{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false};
+    if(set.deviceId)c.video.deviceId={exact:set.deviceId};
+    try{stream=await navigator.mediaDevices.getUserMedia(c)}
+    catch(e){if(set.deviceId){set.deviceId='';saveSet();delete c.video.deviceId;stream=await navigator.mediaDevices.getUserMedia(c)}else throw e}
+    if(!video){video=document.createElement('video');video.muted=true;video.playsInline=true;loop()}
+    video.srcObject=stream;await video.play();size();
+    stream.getVideoTracks()[0].addEventListener('ended',function(){S.st='nocam';S.msgH='The camera disconnected';S.msgP='Check the cable, then press Try again.';render()});
+    fillCams();
+    if(S.st==='init'||S.st==='nocam')S.st='welcome';
+    render();wake();
+  }catch(e){
+    S.st='nocam';S.msgH=e.name==='NotAllowedError'?'Camera access is blocked':e.name==='NotFoundError'?'No camera found':e.name==='NotReadableError'?'The camera is busy':'The camera did not start';
+    S.msgP=(e.name||'')+' '+(e.message||'');render();
+  }
+}
+async function fillCams(){
+  try{var list=(await navigator.mediaDevices.enumerateDevices()).filter(function(d){return d.kind==='videoinput'}),sel=$('#sCam'),tr=stream&&stream.getVideoTracks()[0],cur=tr&&tr.getSettings().deviceId;sel.innerHTML='';
+    list.forEach(function(d,i){var o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Camera '+(i+1));if(d.deviceId===cur)o.selected=true;sel.appendChild(o)});
+    if(!list.length){var n=document.createElement('option');n.textContent='No camera found';sel.appendChild(n)}}catch(e){}
+}
+/* choosing a camera in the list switches to it straight away when the booth is idle; during a recording or a review it waits for the welcome screen */
+var pendingCam=false;
+function camIdle(){return S.st==='welcome'||S.st==='nocam'}
+$('#sCam').onchange=function(){
+  var cam=this.value,tr=stream&&stream.getVideoTracks()[0],cur=tr&&tr.getSettings().deviceId;
+  if(!cam||cam===cur)return;
+  set.deviceId=cam;saveSet();
+  if(camIdle()){pendingCam=false;$('#camNote').textContent='';startCamera()}
+  else{pendingCam=true;$('#camNote').textContent='The camera will switch when the booth is back at the welcome screen.'}
+};
+$('#camRefresh').onclick=fillCams;
+try{navigator.mediaDevices.addEventListener('devicechange',function(){fillCams();if(S.st==='nocam'&&/No camera found|disconnected/.test(S.msgH))startCamera()})}catch(e){}
+var wl=null;async function wake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',function(){wl=null})}}catch(e){}}
+
+/* ---------- recording ---------- */
+function mime(){var c=['video/mp4;codecs=avc1.640028','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(var i=0;i<c.length;i++)try{if(MediaRecorder.isTypeSupported(c[i]))return c[i]}catch(e){}return ''}
+function startCountdown(){resetLogo();
+  var n=Math.max(0,Math.min(10,+set.countdown||0));
+  if(!n){startRecording();return}
+  S.st='countdown';S.num=n;render();
+  cdTimer=setInterval(function(){S.num--;if(S.num<=0){clearInterval(cdTimer);cdTimer=null;startRecording()}else render()},1000);
+}
+function startRecording(){
+  size();drawRecFrame();if(job.ctl)job.ctl.pause();perf.start();
+  var mt=mime(),big=rc.height>=1000?8000000:5000000;
+  function mk(canvas,bps){
+    var r,o={videoBitsPerSecond:bps};if(mt)o.mimeType=mt;
+    try{r=new MediaRecorder(canvas.captureStream(30),o)}catch(e){r=new MediaRecorder(canvas.captureStream(30))}
+    var chunks=[];r.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
+    r.done=new Promise(function(res){r.onstop=function(){res(new Blob(chunks,{type:r.mimeType||mt||'video/webm'}))}});
+    r.start(500);return r;
+  }
+  recs=[mk(rc,big),liveBrand()?mk(bc,big):null,mk(pc,1500000)];
+  S.st='recording';S.t0=Date.now();S.replayId=0;render();
+}
+function stopRecording(){
+  if(S.st!=='recording')return;
+  S.st='stopping';render();
+  recs.forEach(function(r){if(r&&r.state!=='inactive')r.stop()});
+  perf.stop();
+  Promise.all(recs.map(function(r){return r?r.done:Promise.resolve(null)})).then(function(b){
+    if(job.ctl)job.ctl.resume();
+    S.take={master:b[0],brand:b[1],preview:b[2],ext:/mp4/.test(b[0].type)?'mp4':'webm'};
+    S.st='review';S.lastTouch=Date.now();render();
+    var lv=$('#replay');if(lv.src)URL.revokeObjectURL(lv.src);lv.src=URL.createObjectURL(b[2]);lv.play().catch(function(){});
+    fetch('/replay',{method:'POST',headers:{'Content-Type':b[2].type},body:b[2]}).then(function(r){return r.json()}).then(function(j){S.replayId=j.id;render()}).catch(function(){});
+  });
+}
+function retake(){
+  if(S.st!=='review'||S.retakesUsed>=(+set.retakes||0))return;
+  S.retakesUsed++;S.take=null;startCountdown();
+}
+async function keep(){
+  if(!S.take||S.st==='saving')return;
+  var t=S.take;S.st='saving';render();
+  try{
+    var r1=t.r1;
+    if(!r1){r1=await (await fetch('/save?kind=master&ext='+t.ext,{method:'POST',body:t.master})).json();if(!r1.ok)throw new Error(r1.error||'master not saved');t.r1=r1}
+    var later=set.branded&&!t.brand;
+    if(!later&&!t.r2){
+      var r2=await (await fetch('/save?kind=share&ext='+t.ext+'&n='+r1.n+'&code='+r1.code,{method:'POST',body:t.brand||t.master})).json();
+      if(!r2.ok)throw new Error(r2.error||'branded copy not saved');t.r2=r2;
+    }
+    S.code=r1.code;S.n=r1.n;S.count++;S.take=null;S.lastSave=r1.file+(r1.backup==='ok'?' (backup ok)':r1.backup==='none'?'':' (BACKUP '+r1.backup+')');
+    S.st='share';S.until=Date.now()+(+set.shareSec||30)*1000;render();loadList();
+    if(later){job.queue.push({master:t.master,ext:t.ext,n:r1.n,code:r1.code,tries:0});runJobs()}
+  }catch(e){
+    S.err=e.message;S.st='savefail';S.lastTouch=Date.now();render();
+  }
+}
+function leaveFailed(){if(S.take){S.unsaved.push(S.take);S.take=null}toWelcome();renderUnsaved()}
+function toThanks(){S.st='thanks';S.until=Date.now()+(+set.thanksSec||4)*1000;render()}
+function toWelcome(){S.st='welcome';S.retakesUsed=0;S.code='';S.take=null;render();if(pendingCam){pendingCam=false;$('#camNote').textContent='';startCamera()}}
+function cancel(){if(S.st==='countdown'){clearInterval(cdTimer);cdTimer=null;toWelcome()}}
+
+/* ---------- branded copy after Keep (lighter mode) ----------
+   Plays the saved master in real time, adds the logo, records it, saves it under the same number and code.
+   Pauses while a new recording is running, so the live recording always has the laptop to itself. */
+var jc=document.createElement('canvas'),jx=jc.getContext('2d');
+var job={queue:[],busy:false,ctl:null,failed:[]};
+function makeBranded(j){
+  return new Promise(function(resolve,reject){
+    jc._lg=null;var v=$('#jobVideo'),url=URL.createObjectURL(j.master),rec=null,chunks=[],mt=mime(),paused=false,lastT=-1,stall=0,done=false,pending=false;
+    function finish(err,blob){if(done)return;done=true;job.paused=false;clearInterval(watch);job.ctl=null;v.pause();v.removeAttribute('src');v.load();URL.revokeObjectURL(url);err?reject(err):resolve(blob)}
+    function draw(){if(v.videoWidth){jx.drawImage(v,0,0,jc.width,jc.height);drawBrand(jx)}}
+    function tick(){pending=false;if(done||v.ended||paused)return;draw();pending=true;if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(tick);else requestAnimationFrame(tick)}
+    v.onloadedmetadata=function(){
+      jc.width=v.videoWidth||1280;jc.height=v.videoHeight||720;draw();
+      var o={videoBitsPerSecond:jc.height>=1000?8000000:5000000};if(mt)o.mimeType=mt;
+      try{rec=new MediaRecorder(jc.captureStream(30),o)}catch(e){rec=new MediaRecorder(jc.captureStream(30))}
+      rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
+      rec.onstop=function(){finish(null,new Blob(chunks,{type:rec.mimeType||mt||'video/webm'}))};
+      rec.start(500);
+      v.play().then(tick).catch(function(e){finish(new Error('could not play the master clip: '+e.message))});
+    };
+    v.onended=function(){draw();setTimeout(function(){if(rec&&rec.state!=='inactive')rec.stop()},150)};
+    v.onerror=function(){finish(new Error('could not open the master clip'))};
+    job.ctl={
+      pause:function(){if(paused||!rec)return;paused=true;job.paused=true;v.pause();if(rec.state==='recording')rec.pause();renderJobs()},
+      resume:function(){if(!paused||!rec)return;paused=false;job.paused=false;if(rec.state==='paused')rec.resume();v.play().then(function(){if(!pending)tick()}).catch(function(){});renderJobs()}
+    };
+    var watch=setInterval(function(){
+      if(paused||!rec)return;
+      if(v.currentTime===lastT){if(++stall>=20)finish(new Error('the master clip stopped playing'))}else{stall=0;lastT=v.currentTime}
+    },500);
+    v.src=url;
+  });
+}
+function runJobs(){
+  if(job.busy||!job.queue.length)return;
+  var j=job.queue[0];job.busy=true;renderJobs();
+  (set.branded?makeBranded(j):Promise.resolve(j.master)).then(function(blob){
+    return fetch('/save?kind=share&ext='+j.ext+'&n='+j.n+'&code='+j.code,{method:'POST',body:blob}).then(function(r){return r.json()});
+  }).then(function(r){
+    if(!r.ok)throw new Error(r.error||'not saved');
+    job.queue.shift();loadList();
+  }).catch(function(e){
+    job.queue.shift();j.tries++;j.err=e.message;
+    if(j.tries<2)job.queue.push(j);else job.failed.push(j);
+  }).then(function(){job.busy=false;renderJobs();runJobs()});
+}
+function renderJobs(){
+  var n=job.queue.length,card=$('#jobCard');
+  card.hidden=!n&&!job.failed.length;
+  $('#jobTxt').textContent=n?(job.paused?'Paused while a graduate is recording. ':'')+n+' waiting (clip '+job.queue.map(function(j){return String(j.n).padStart(3,'0')}).join(', ')+'). Keep this window visible.':'All branded copies are saved.';
+  var box=$('#jobFails');box.innerHTML='';
+  job.failed.forEach(function(j,i){
+    var b=document.createElement('button');b.className='btn';b.style.marginTop='8px';
+    b.textContent='Branded copy for clip '+String(j.n).padStart(3,'0')+' failed ('+j.err+'). Try again';
+    b.onclick=function(){job.failed.splice(i,1);j.tries=0;job.queue.push(j);runJobs()};box.appendChild(b);
+  });
+}
+
+/* ---------- performance readout ----------
+   Frames per second drawn while recording, camera frames missed by the drawing loop,
+   and how late the page's timers run (a sign the laptop is busy). Kept for a whole test run. */
+var perf=(function(){
+  var run=[];try{run=JSON.parse(localStorage.getItem('boothPerf')||'[]')}catch(e){}
+  var on=false,t0=0,frames=0,missed=0,lastPF=null,lastMT=null,lagMax=0,camCount=0,camT=Date.now(),camFps=0,drawFps=0,secFrames=0,secT=0,last=null;
+  var expect=Date.now();
+  setInterval(function(){var now=Date.now(),lag=now-expect-100;expect=now;if(on&&lag>lagMax)lagMax=lag},100);
+  function camFpsSetting(){try{return stream.getVideoTracks()[0].getSettings().frameRate||30}catch(e){return 30}}
+  function show(){
+    var cam=video&&video.videoWidth?video.videoWidth+' x '+video.videoHeight:'no camera';
+    $('#perfLive').textContent='Camera '+cam+' at about '+camFps+' fps.'+(on?' Recording: drawing '+drawFps+' fps.':'')+' Mode: '+(liveBrand()?'branded copy while recording':'branded copy after Keep')+'.';
+    if(last)$('#perfLast').textContent='Last take: '+last.fps+' of '+(last.cam||30)+' fps, '+last.missed+' missed frames ('+last.pct+'%), worst delay '+last.lag+' ms.';
+    if(run.length){
+      var lo=Math.min.apply(null,run.map(function(r){return r.fps})),tm=run.reduce(function(a,r){return a+r.missed},0),tf=run.reduce(function(a,r){return a+r.frames},0),wl=Math.max.apply(null,run.map(function(r){return r.lag}));
+      $('#perfRun').textContent='This run: '+run.length+' takes, lowest '+lo+' fps, '+tm+' missed frames in total ('+(tf?(tm/(tf+tm)*100).toFixed(1):0)+'%), worst delay '+wl+' ms.';
+      /* fine if every take kept at least 90% of the camera's frame rate, missed under 2% and the page never froze for half a second */
+      var worst=Math.min.apply(null,run.map(function(r){return r.fps/(r.cam||30)}));
+      var ok=worst>=.9&&(tf?tm/(tf+tm):0)<=.02&&wl<500;
+      $('#perfVerdict').textContent=ok?'Looks fine for the event.':'Struggling: the clips may stutter. Note these numbers and see the README, "Camera and frame rate".';
+      $('#perfVerdict').className=ok?'ok':'bad';
+    }else{$('#perfRun').textContent='This run: no takes yet.';$('#perfVerdict').textContent=''}
+  }
+  setInterval(function(){
+    var now=Date.now();camFps=Math.round(camCount*1000/Math.max(1,now-camT));camCount=0;camT=now;
+    if(on){drawFps=Math.round(secFrames*1000/Math.max(1,now-secT));secFrames=0;secT=now}
+    show();
+  },1000);
+  return {
+    camFrame:function(){camCount++},
+    start:function(){on=true;t0=Date.now();secT=t0;frames=0;missed=0;lastPF=null;lastMT=null;lagMax=0;secFrames=0},
+    frame:function(meta){
+      frames++;secFrames++;
+      if(meta&&typeof meta.presentedFrames==='number'){if(lastPF!==null&&meta.presentedFrames-lastPF>1)missed+=meta.presentedFrames-lastPF-1;lastPF=meta.presentedFrames}
+      else if(meta&&typeof meta.mediaTime==='number'){var fps=camFpsSetting();if(lastMT!==null){var gap=Math.round((meta.mediaTime-lastMT)*fps)-1;if(gap>0)missed+=gap}lastMT=meta.mediaTime}
+    },
+    stop:function(){
+      if(!on)return;on=false;
+      var secs=(Date.now()-t0)/1000;
+      last={cam:Math.round(camFpsSetting()),fps:Math.round(frames/Math.max(.1,secs)*10)/10,missed:missed,frames:frames,pct:(frames+missed?(missed/(frames+missed)*100).toFixed(1):'0'),lag:Math.round(lagMax),mode:liveBrand()?'live':'after',at:new Date().toISOString()};
+      run.push(last);if(run.length>200)run.shift();try{localStorage.setItem('boothPerf',JSON.stringify(run))}catch(e){}
+      show();
+    },
+    reset:function(){run=[];last=null;try{localStorage.removeItem('boothPerf')}catch(e){}$('#perfLast').textContent='Last take: none yet.';show()}
+  };
+})();
+$('#perfReset').onclick=function(){perf.reset()};
+
+/* one entry point for the tablet, the buttons and the keyboard */
+function act(a){
+  S.lastTouch=Date.now();
+  if(a==='start'&&S.st==='welcome'){S.retakesUsed=0;startCountdown()}
+  else if(a==='cancel')cancel();
+  else if(a==='finish')stopRecording();
+  else if(a==='keep'&&S.st==='review')keep();
+  else if(a==='retake')retake();
+  else if(a==='done'&&S.st==='share')toThanks();
+  else if(a==='retry'&&S.st==='savefail')keep();
+  else if(a==='leave'&&S.st==='savefail')leaveFailed();
+  else if(a==='main'){
+    if(S.st==='welcome')act('start');else if(S.st==='recording')act('finish');else if(S.st==='review')act('keep');
+    else if(S.st==='share')act('done');else if(S.st==='savefail')act('retry');
+  }
+}
+
+/* timers: recording limit, replay auto-keep, screen hold times */
+setInterval(function(){
+  var now=Date.now();
+  if(S.st==='recording'&&(now-S.t0)/1000>=(+set.maxLen||20))stopRecording();
+  if(S.st==='review'&&now-S.lastTouch>=(+set.idleSec||30)*1000)keep();
+  if(S.st==='savefail'&&now-S.lastTouch>=120000)leaveFailed();
+  if(S.st==='share'&&now>=S.until)toThanks();
+  if(S.st==='thanks'&&now>=S.until)toWelcome();
+  publish();
+},200);
+
+/* ---------- state to the tablet ---------- */
+var lastSent='';
+function stateObj(){
+  var now=Date.now(),max=+set.maxLen||20;
+  return {st:S.st==='stopping'?'recording':S.st,num:S.num,left:S.st==='recording'?Math.max(0,Math.ceil(max-(now-S.t0)/1000)):0,max:max,
+    retakesLeft:Math.max(0,(+set.retakes||0)-S.retakesUsed),replay:S.replayId,code:S.st==='share'?S.code:'',shareBase:set.shareBase,linkHours:+set.linkHours||72,
+    shareLeft:S.st==='share'?Math.max(0,Math.ceil((S.until-now)/1000)):0,
+    idleLeft:S.st==='review'?Math.max(0,Math.ceil(((+set.idleSec||30)*1000-(now-S.lastTouch))/1000)):0,
+    count:S.count,consent:set.consent,attractSec:+set.attractSec||60,hid:document.hidden,msgH:S.msgH,msgP:S.msgP};
+}
+function publish(){
+  var s=JSON.stringify(stateObj());
+  if(s!==lastSent){lastSent=s;fetch('/state',{method:'POST',body:s}).catch(function(){})}
+}
+/* small live preview for the tablet, about 10 frames a second */
+var sm=document.createElement('canvas'),sx=sm.getContext('2d'),busy=false;sm.width=640;sm.height=360;
+setInterval(function(){
+  if(busy||!video||!video.videoWidth)return;busy=true;
+  sx.drawImage(view,0,0,640,360);
+  sm.toBlob(function(b){if(!b){busy=false;return}fetch('/frame',{method:'POST',headers:{'Content-Type':'image/jpeg'},body:b}).catch(function(){}).then(function(){busy=false})},'image/jpeg',.65);
+},100);
+
+/* ---------- commands from the tablet ---------- */
+var es=new EventSource('/rec-events');
+es.addEventListener('cmd',function(m){try{var c=JSON.parse(m.data);act(c.a)}catch(e){}});
+es.addEventListener('tablets',function(m){S.tablets=+m.data;render()});
+
+/* ---------- staff screen ---------- */
+var NAMES={init:'Starting',nocam:'Camera problem',welcome:'Waiting for a graduate',countdown:'Countdown',recording:'Recording',stopping:'Finishing the clip',review:'Graduate is watching the replay',saving:'Saving',share:'Showing "Your clip" and the QR',thanks:'Thank you screen',savefail:'Save FAILED'};
+function render(){
+  var st=S.st,stage=$('#stage');
+  stage.className='stage '+(st==='stopping'?'recording':st);
+  $('#stateTxt').textContent=NAMES[st]||st;
+  $('#msgH').textContent=S.msgH;$('#msgP').textContent=S.msgP;$('#msgBtn').hidden=st!=='nocam';
+  var pill=$('#pill');pill.className='pill'+(st==='recording'?' rec':'');
+  pill.textContent=st==='recording'?'REC':st==='review'?'Replay (take '+(S.retakesUsed+1)+')':st==='share'?'Kept: '+(S.lastSave||''):NAMES[st]||st;
+  $('#big').textContent=S.num;
+  var d='';
+  if(st==='review')d=S.retakesUsed<(+set.retakes||0)?'Retake available.':'Final take, no retake left.';
+  if(st==='savefail')d='Reason: '+(S.err||'unknown')+'. Press Try again, or Leave it to keep the clip in memory for later.';
+  if(st==='share')d='Code '+S.code+'. '+(S.lastSave||'');
+  $('#detail').textContent=d;
+  var m=$('#bMain');m.disabled=!/^(welcome|recording|review|share|savefail)$/.test(st);
+  m.textContent={welcome:'Start',recording:'Finish',review:'Keep',share:'Done',savefail:'Try again'}[st]||'Start';
+  $('#bRetake').disabled=!(st==='review'&&S.retakesUsed<(+set.retakes||0));
+  $('#bCancel').textContent=st==='savefail'?'Leave it':'Cancel';$('#bCancel').disabled=!(st==='countdown'||st==='savefail');
+  $('#tabs').textContent=S.tablets?S.tablets+' connected':'not connected';$('#tabs').className=S.tablets?'ok':'bad';
+  $('#count').textContent=S.count;
+  renderStrip();
+  publish();
+}
+/* ---------- status strip ---------- */
+var CK=null,stripTarget='';
+var STRIP_WORDS={init:'Starting',nocam:'Camera problem',welcome:'Waiting for a graduate',countdown:'Countdown',recording:'Recording',stopping:'Recording',review:'Watching the replay',saving:'Saving',share:'Showing the QR',thanks:'Thank you screen',savefail:'Save FAILED'};
+function loadCheck(){fetch('/check.json').then(function(r){return r.json()}).then(function(j){CK=j;renderStrip()}).catch(function(){CK=null;renderStrip()})}
+function chip(id,cls,txt){var e=$(id);if(e.className!=='chk '+cls)e.className='chk '+cls;var b=e.querySelector('b');if(b.textContent!==txt)b.textContent=txt}
+function pad3(n){return String(n).padStart(3,'0')}
+function setText(id,t){var e=$(id);if(e.textContent!==t)e.textContent=t}
+var lastStripSt='';
+function renderStrip(){
+  var st=S.st,max=+set.maxLen||20,w=STRIP_WORDS[st]||st;
+  if(st==='recording'||st==='stopping')w='Recording, '+Math.max(0,Math.ceil(max-(Date.now()-S.t0)/1000))+' s left';
+  else if(st==='countdown')w='Countdown '+S.num;
+  if(st!==lastStripSt){lastStripSt=st;if(st==='savefail'||st==='share'||st==='nocam')loadCheck()}
+  setText('#sWord',w);
+  setText('#sSub',job.queue.length?'Making branded copies: '+job.queue.length+' waiting':'');
+  setText('#sCount',String(S.count||0));
+  chip('#cTab',S.tablets?'ok':'bad',S.tablets?'Connected':'Not connected');
+  chip('#cCam',st==='nocam'?'bad':st==='init'?'warn':'ok',st==='nocam'?'Problem':st==='init'?'Starting':'Live');
+  if(!CK){chip('#cSave','','Checking');chip('#cBak','','Checking')}
+  else{
+    var c=CK.clips,sg=CK.storage.settings,wantsDrive=/^(My Drive|Shared drives\/)/.test(sg.location||'');
+    if(!c.writable)chip('#cSave','bad','Folder not writable');
+    else if(wantsDrive&&c.kind!=='drive')chip('#cSave','bad','Drive not found');
+    else if(c.kind==='local'&&sg.location!=='local')chip('#cSave','warn','This laptop only');
+    else if((CK.storage.notes||[]).filter(function(n){return !/USB|backup/i.test(n)}).length)chip('#cSave','warn',(c.kind==='drive'?'Google Drive':c.kind==='custom'?'Chosen folder':'This laptop')+', check notes');
+    else chip('#cSave','ok',c.kind==='drive'?'Google Drive':c.kind==='custom'?'Chosen folder':'This laptop only');
+    var b=CK.backup;
+    if(b.mode==='none')chip('#cBak','','None set');
+    else if(!b.set)chip('#cBak','bad','Not found');
+    else if(!b.writable)chip('#cBak','bad','Cannot write');
+    else chip('#cBak','ok',b.mode==='usb'?'USB: '+(b.name||'stick'):'Backup folder');
+    var sy=CK.sync||{on:false};
+    $('#cSync').style.display=sy.on?'':'none';
+    if(sy.on){
+      if(!sy.found)chip('#cSync','bad','rclone missing');
+      else if(sy.lastError)chip('#cSync','bad','Failing, retrying');
+      else if(sy.running||sy.waiting)chip('#cSync','warn',sy.running?'Uploading':'Waiting');
+      else chip('#cSync','ok','Up to date');
+    }
+  }
+  var msg='';
+  if(st==='savefail'){msg='Save FAILED. Press Try again.';stripTarget='#bMain'}
+  else if(job.failed.length){msg='Branded copy failed for clip '+pad3(job.failed[0].n)+(job.failed.length>1?' and '+(job.failed.length-1)+' more':'')+'.';stripTarget='#jobCard'}
+  else if(S.unsaved.length){msg=S.unsaved.length+(S.unsaved.length>1?' clips are':' clip is')+' not saved yet.';stripTarget='#unsaved'}
+  setText('#sMsgT',msg);$('#sMsg').hidden=!msg;
+}
+$('#sMsgB').onclick=function(){var e=$(stripTarget);if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'center'})};
+setInterval(renderStrip,500);setInterval(loadCheck,10000);
+
+$('#bMain').onclick=function(){act('main')};
+$('#bRetake').onclick=function(){act('retake')};
+$('#bCancel').onclick=function(){act(S.st==='savefail'?'leave':'cancel')};
+$('#msgBtn').onclick=startCamera;
+document.addEventListener('keydown',function(e){
+  var t=e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='SUMMARY')return;
+  if(e.key===' '||e.key==='Enter'){e.preventDefault();act('main')}
+  else if(e.key==='r'||e.key==='R')act('retake');
+  else if(e.key==='Escape')act('cancel');
+});
+document.addEventListener('visibilitychange',function(){$('#warnHidden').classList.toggle('on',document.hidden);publish();if(!document.hidden)wake()});
+window.addEventListener('beforeunload',function(e){if(S.take||S.st==='recording'||S.st==='saving'){e.preventDefault();e.returnValue=''}});
+
+function renderUnsaved(){
+  var box=$('#unsaved');box.innerHTML='';
+  S.unsaved.forEach(function(t,i){
+    var b=document.createElement('button');b.className='btn';b.style.marginTop='10px';b.textContent='Unsaved clip '+(i+1)+': try saving again';
+    b.onclick=function(){if(S.st!=='welcome')return;S.take=S.unsaved.splice(i,1)[0];renderUnsaved();keep()};box.appendChild(b);
+  });
+}
+function kb(n){return n>1e6?(n/1e6).toFixed(1)+' MB':Math.round(n/1e3)+' KB'}
+function loadList(){
+  fetch('/list').then(function(r){return r.json()}).then(function(j){
+    $('#folder').textContent='Folder: '+j.clips+(j.backup?'  |  Backup: '+j.backup:'  |  Backup: none set');
+    var tb=$('#rows');tb.innerHTML='';
+    j.rows.slice(0,40).forEach(function(r){var tr=document.createElement('tr');
+      [r.file,r.folder,kb(r.bytes),new Date(r.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})].forEach(function(v){var td=document.createElement('td');td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)});
+  }).catch(function(){});
+}
+
+/* tablet connect link and QR */
+function showConnect(){
+  if(!info||!window.BoothQR)return;
+  var sel=$('#ifSel'),a=info.addresses[+sel.value||0];
+  if(!a){$('#tabUrl').textContent='No network found. Join the tablet hotspot or a Wi-Fi network, then reload this page.';return}
+  var url='http://'+a.ip+':'+info.port+'/tablet?k='+info.key;
+  $('#tabUrl').textContent=url;BoothQR.toCanvas($('#qrTab'),url,264);
+}
+fetch('/info').then(function(r){return r.json()}).then(function(j){
+  info=j;S.count=Math.max(0,j.next-1);
+  var sel=$('#ifSel');j.addresses.forEach(function(a,i){var o=document.createElement('option');o.value=i;o.textContent='Network: '+a.name+' ('+a.ip+')';sel.appendChild(o)});
+  sel.onchange=showConnect;showConnect();render();
+});
+var qs=document.createElement('script');qs.src='/qr.js';qs.onload=showConnect;document.head.appendChild(qs);
+
+/* settings */
+function fillSettings(){
+  $('#sCd').value=set.countdown;$('#sMax').value=set.maxLen;$('#sRetakes').value=set.retakes;$('#sIdle').value=set.idleSec;$('#sShare').value=set.shareSec;
+  $('#sThanks').value=set.thanksSec;$('#sAttract').value=set.attractSec;$('#sFP').checked=set.flipPreview;$('#sFS').checked=set.flipSaved;$('#sBr').checked=set.branded;$('#sBrMode').value=set.brandMode==='live'?'live':'after';
+  $('#sBase').value=set.shareBase;$('#sHours').value=set.linkHours;$('#sCon').value=set.consent;
+  $('#sLogo').value=set.logoMode||'auto';$('#sLogoPos').value=set.logoPos||'br';$('#sLogoSize').value=set.logoSize||12;
+}
+$('#sSave').onclick=function(){
+  function num(id,lo,hi,d){var v=parseInt($(id).value,10);return isNaN(v)?d:Math.max(lo,Math.min(hi,v))}
+  set.countdown=num('#sCd',0,10,5);set.maxLen=num('#sMax',5,60,20);set.retakes=num('#sRetakes',0,5,1);set.idleSec=num('#sIdle',10,120,30);
+  set.shareSec=num('#sShare',10,120,30);set.thanksSec=num('#sThanks',2,15,4);set.attractSec=num('#sAttract',15,600,60);
+  set.flipPreview=$('#sFP').checked;set.flipSaved=$('#sFS').checked;set.branded=$('#sBr').checked;set.brandMode=$('#sBrMode').value;set.logoMode=$('#sLogo').value;set.logoPos=$('#sLogoPos').value;set.logoSize=num('#sLogoSize',8,20,12);set.shareBase=$('#sBase').value.trim();set.linkHours=num('#sHours',1,720,72);set.consent=$('#sCon').value;
+  saveSet();fillSettings();render();
+  var sb=$('#sSave');
+  saveFile().then(function(){sb.textContent='Saved'}).catch(function(){sb.textContent='Saved in this browser only (file not written)'})
+    .then(function(){setTimeout(function(){sb.textContent='Save settings'},3000)});
+};
+/* logo preview: the chosen logo on the camera or on a test backdrop, using the choices in the form (saved or not) */
+var busyBg=null;
+function busyPattern(w,h){
+  var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d'),seed=7;
+  function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+  var g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,'#2d6a4f');g.addColorStop(.5,'#e9c46a');g.addColorStop(1,'#264653');x.fillStyle=g;x.fillRect(0,0,w,h);
+  for(var i=0;i<260;i++){x.fillStyle='hsl('+Math.floor(rnd()*360)+','+Math.floor(30+rnd()*60)+'%,'+Math.floor(15+rnd()*70)+'%)';x.fillRect(rnd()*w,rnd()*h,10+rnd()*60,10+rnd()*60)}
+  return c;
+}
+function drawLogoPreview(){
+  var d=$('#setBox');if(!d.open)return;
+  var c=$('#logoPrev'),x=c.getContext('2d'),bg=$('#logoBg').value;
+  if(c._bg!==bg){c._bg=bg;c._lg=null}
+  if(bg==='cam'){if(!video||!video.videoWidth)return;drawCam(x,set.flipSaved)}
+  else if(bg==='busy'){if(!busyBg)busyBg=busyPattern(c.width,c.height);x.drawImage(busyBg,0,0)}
+  else{x.fillStyle=bg==='dark'?'#16161a':bg==='light'?'#f2f2f2':(getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#24435E');x.fillRect(0,0,c.width,c.height)}
+  var o={logoMode:$('#sLogo').value,logoPos:$('#sLogoPos').value,logoSize:Math.max(8,Math.min(20,parseInt($('#sLogoSize').value,10)||12))};
+  drawBrand(x,o);
+  var lg=c._lg;$('#logoPick').textContent='Using: '+(LOGO_LABEL[lg&&lg.drawn]||'logo')+(o.logoMode==='auto'?' (picked automatically)':'');
+}
+setInterval(drawLogoPreview,500);
+
+/* where clips are saved: the server holds the truth (GET and POST /storage). The form shows a dry run of the path as you change it. */
+var ST=null,stTimer=null;
+function opt(sel,v,t){var o=document.createElement('option');o.value=v;o.textContent=t;sel.appendChild(o);return o}
+function locLabel(l){return l==='My Drive'?'My Drive':l.indexOf('Shared drives/')===0?'Shared drive: '+l.slice(14):l}
+function stRead(){return {account:$('#stAcc').value,location:$('#stLoc').value,folder:$('#stFolder').value,customPath:$('#stCustom').value,backup:$('#stBackup').value,usbName:$('#stUsb').value,backupFolder:$('#stBf').value}}
+function stFillLocs(cur){
+  var acc=$('#stAcc').value,list=ST.options.accounts,a=acc?list.filter(function(x){return x.email.toLowerCase()===acc.toLowerCase()})[0]:list[0],sl=$('#stLoc');
+  cur=cur||sl.value;sl.innerHTML='';(a?a.locations:[]).forEach(function(l){opt(sl,l,locLabel(l))});
+  opt(sl,'local','This laptop only (no Google Drive)');opt(sl,'custom','Another folder on this laptop');
+  if(cur&&![].some.call(sl.options,function(o){return o.value===cur}))opt(sl,cur,locLabel(cur)+' (not found on this account)');
+  sl.value=cur||sl.options[0].value;
+}
+function stVis(){
+  var l=$('#stLoc').value,b=$('#stBackup').value,drive=l!=='local'&&l!=='custom';
+  $('#stAccRow').hidden=!drive;$('#stFolderRow').hidden=!drive;$('#stCustomRow').hidden=l!=='custom';
+  $('#stUsbRow').hidden=b!=='usb';$('#stBfRow').hidden=b!=='folder';
+}
+function stShow(r,prefix){
+  var b=$('#stInfo');b.innerHTML='';
+  function line(t,c){var e=document.createElement('p');e.textContent=t;if(c)e.className=c;b.appendChild(e)}
+  line((prefix||'Clips are saved to: ')+r.clips+'  ('+(r.kind==='drive'?'Google Drive, '+r.account:r.kind==='custom'?'chosen folder':'this laptop only')+')');
+  line('Backup copy: '+(r.backup||'none'));
+  r.notes.forEach(function(n){line(n,'bad')});
+}
+function stFill(){
+  var s=ST.settings,o=ST.options,sa=$('#stAcc'),su=$('#stUsb');
+  sa.innerHTML='';opt(sa,'','Any account that is signed in');
+  o.accounts.forEach(function(a){opt(sa,a.email,a.email)});
+  if(s.account&&!o.accounts.some(function(a){return a.email.toLowerCase()===s.account.toLowerCase()}))opt(sa,s.account,s.account+' (not signed in on this laptop)');
+  sa.value=s.account;stFillLocs(s.location);
+  $('#stFolder').value=s.folder;$('#stCustom').value=s.customPath;$('#stBackup').value=s.backup;$('#stBf').value=s.backupFolder;
+  su.innerHTML='';o.usb.forEach(function(v){opt(su,v.name,v.name+(v.writable?'':' (read-only)'))});
+  if(!o.usb.some(function(v){return v.name===s.usbName}))opt(su,s.usbName,s.usbName+' (not plugged in)');
+  su.value=s.usbName;$('#stPort').value=ST.portSetting;
+  ['#stAcc','#stLoc','#stFolder','#stCustom','#stBackup','#stUsb','#stBf','#stPort','#stApply'].forEach(function(id){$(id).disabled=ST.locked});
+  stVis();stShow(ST.resolved);stBanner();
+}
+/* a banner on the main screen whenever clips are not going where the settings say, or the backup is missing */
+function stBanner(){
+  var w=$('#stWarn'),r=ST&&ST.resolved,msgs=[];
+  if(r&&!ST.locked){
+    r.notes.forEach(function(n){msgs.push(n)});
+    if(ST.settings.backup==='usb'&&!r.backup&&ST.options.usb.some(function(v){return v.name===ST.settings.usbName}))msgs.push('The USB stick is plugged in now. Open Settings, Where clips are saved, and press Apply save location to start using it.');
+    if(ST.settings.location!=='local'&&ST.settings.location!=='custom'&&r.kind==='local'&&ST.options.accounts.some(function(a){return !ST.settings.account||a.email.toLowerCase()===ST.settings.account.toLowerCase()}))msgs.push('Google Drive is signed in now. Open Settings, Where clips are saved, and press Apply save location to start using it.');
+  }
+  w.textContent=msgs.join(' ');w.classList.toggle('on',msgs.length>0);
+}
+function stLoad(){
+  return fetch('/storage').then(function(r){return r.json()}).then(function(j){
+    var editing=ST&&document.activeElement&&/^st/.test(document.activeElement.id||'');
+    ST=j;if(!editing||!$('#setBox').open)stFill();else stBanner();
+  }).catch(function(){$('#stInfo').textContent='Could not read the save location from the booth server.'});
+}
+function stDry(){
+  clearTimeout(stTimer);
+  stTimer=setTimeout(function(){
+    fetch('/storage?dry=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storage:stRead()})}).then(function(r){return r.json()}).then(function(j){
+      if(!j.ok){$('#stInfo').innerHTML='';var e=document.createElement('p');e.className='bad';e.textContent=j.error;$('#stInfo').appendChild(e);return}
+      stShow(j.resolved,'Will be saved to: ');
+    }).catch(function(){});
+  },300);
+}
+$('#stAcc').onchange=function(){stFillLocs();stVis();stDry()};
+['#stLoc','#stBackup'].forEach(function(id){$(id).onchange=function(){stVis();stDry()}});
+['#stFolder','#stCustom','#stBf'].forEach(function(id){$(id).oninput=stDry});
+$('#stUsb').onchange=stDry;
+$('#stRefresh').onclick=function(){$('#stMsg').textContent='';ST=null;stLoad()};
+$('#stApply').onclick=function(){
+  var m=$('#stMsg');m.className='';
+  if(!camIdle()||job.busy||job.queue.length){m.className='bad';m.textContent='Wait until the booth is at the welcome screen and no branded copy is being made, then press Apply again.';return}
+  m.textContent='Applying...';
+  var port=$('#stPort').value;
+  fetch('/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storage:stRead(),port:port})}).then(function(r){return r.json()}).then(function(j){
+    if(!j.ok){m.className='bad';m.textContent=j.error||'Not applied.';return}
+    var portChanged=ST&&+port!==+ST.portSetting;
+    ST=j;stFill();m.className='ok';m.textContent='Applied. Clips now go to the folder shown above.'+(portChanged?' The new port is used the next time the booth starts, and the tablet link changes then.':'');
+    loadList();fetch('/info').then(function(r){return r.json()}).then(function(i){info=i;S.count=Math.max(0,i.next-1);render()}).catch(function(){});
+  }).catch(function(){m.className='bad';m.textContent='Could not reach the booth server.'});
+};
+setInterval(stLoad,15000);
+
+/* recovery: make any branded copy that was not finished (for example after a crash or a closed window) */
+function recoverPending(){
+  fetch('/pending').then(function(r){return r.json()}).then(function(j){
+    (j.pending||[]).forEach(function(p){
+      if(job.queue.some(function(q){return q.code===p.code}))return;
+      fetch('/master-file?name='+encodeURIComponent(p.master)).then(function(r){if(!r.ok)throw new Error('master missing');return r.blob()})
+        .then(function(b){job.queue.push({master:b,ext:p.ext,n:p.n,code:p.code,tries:0,recovered:true});runJobs()}).catch(function(){});
+    });
+  }).catch(function(){});
+}
+loadFile().then(function(){fillSettings();loadList();stLoad();loadCheck();render();startCamera();setTimeout(recoverPending,1500)});
+})();
+</script>
+</body>
+</html>

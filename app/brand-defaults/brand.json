@@ -1,0 +1,57 @@
+{
+  "_README": "This is the one file you edit to make the booth your own. Save it, then reload the tablet, recorder or check page (no restart needed). Add ?marks=1 to a page address to see which spots on that page come from here. Keep the quotes and commas as they are. The files named under 'logo' and 'fonts' live in this same folder.",
+
+  "organisation": "Your Organisation",
+  "filePrefix": "signoff",
+
+  "event": { "line1": "Your", "line2": "Event", "year": "2026" },
+  "tagline": "Your tagline here",
+
+  "colors": {
+    "primary": "#24435E",
+    "primaryDark": "#162B3D",
+    "accent": "#E8590C",
+    "tint": "#E4ECF2",
+    "gold": "#C9A227",
+    "goldDark": "#876712",
+    "page": "#F5F6F7",
+    "text": "#161A1D",
+    "muted": "#505A61"
+  },
+
+  "fonts": {
+    "serif": "Georgia,'Times New Roman',serif",
+    "sans": "system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif",
+    "cssFile": ""
+  },
+
+  "logo": {
+    "main": "logo.png",
+    "border": "logo-border.png",
+    "light": "logo-light.png",
+    "colour": "logo-colour.png",
+    "alt": "Your logo"
+  },
+
+  "promo": "promo.mp4",
+
+  "text": {
+    "helpPerson": "a member of staff",
+    "welcomeTitle": "Leave your mark on the glass",
+    "welcomeBody": "Sign your name. Take your clip home on your phone.",
+    "attractTitle": "Leave your mark on the glass",
+    "attractSub": "Sign your name. Take your clip home.",
+    "attractTap": "Tap the screen to begin",
+    "thanksTitle": "Thank you",
+    "thanksBody": "Thanks for stopping by.",
+    "shareTitle": "Your sign-off clip",
+    "shareLead": "Thanks for stopping by.",
+    "shareDownload": "Download your clip",
+    "shareIphone": "On iPhone, tap Download, then open the file and choose Save Video.",
+    "shareWait": "Please check this link again in a few minutes."
+  },
+
+  "consent": "[EDIT ME] Your consent wording goes here. Say who films, what the clip is used for, and who to tell if someone changes their mind. See README, \"Consent and privacy\".",
+
+  "shareBase": ""
+}
